@@ -2,7 +2,7 @@
 //  ProfileView.swift
 //  record
 //
-//  Created by Nadav Avital on 2/24/25.
+//  Created by Nadav Avital on 2/25/25.
 //
 
 import SwiftUI
@@ -10,6 +10,7 @@ import SwiftUI
 struct ProfileView: View {
     @EnvironmentObject var profileManager: UserProfileManager
     @EnvironmentObject var rankingManager: MusicRankingManager
+    @EnvironmentObject var authManager: AuthManager
     @State private var isEditing = false
     @State private var showAlbumPicker = false
     @State private var showSongPicker = false
@@ -31,6 +32,9 @@ struct ProfileView: View {
                     
                     // Featured Section
                     pinnedContentSection
+                    
+                    // Account/Auth section
+                    ProfileAuthSection()
                 }
                 .padding()
             }
@@ -40,6 +44,12 @@ struct ProfileView: View {
         }
         .sheet(isPresented: $showSongPicker) {
             AddSongView()
+        }
+        .onAppear {
+            // Update profile with username from auth if needed
+            if let username = authManager.username, !username.isEmpty {
+                profileManager.username = username
+            }
         }
     }
     
@@ -87,7 +97,9 @@ struct ProfileView: View {
     }
 }
 
-#Preview("Profile View") {
+#Preview {
     ProfileView()
         .environmentObject(UserProfileManager())
+        .environmentObject(MusicRankingManager())
+        .environmentObject(AuthManager.shared)
 }
