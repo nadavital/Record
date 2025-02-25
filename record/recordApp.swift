@@ -12,6 +12,8 @@ struct recordApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(UserProfileManager())
+                .environmentObject(MusicRankingManager())
         }
     }
 }
