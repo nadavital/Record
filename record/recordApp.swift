@@ -7,51 +7,42 @@
 
 import SwiftUI
 import MusicKit
+import FirebaseCore
+import FirebaseAuth
+import FirebaseFirestore
 
 @main
 struct recordApp: App {
     // Initialize shared managers
     @StateObject private var userProfileManager = UserProfileManager()
     @StateObject private var musicRankingManager = MusicRankingManager()
+    @StateObject private var authManager = AuthenticationManager()
     @State private var musicAuthorizationStatus = MusicAuthorization.Status.notDetermined
+    
+    init() {
+        // Configure Firebase
+        FirebaseApp.configure()
+    }
     
     var body: some Scene {
         WindowGroup {
             ZStack {
-                ContentView()
-                    .environmentObject(userProfileManager)
-                    .environmentObject(musicRankingManager)
-                    .onAppear {
-                        Task {
-                            // Check current authorization status
-                            musicAuthorizationStatus = await MusicAuthorization.currentStatus
-                            print("Initial Music Authorization Status: \(musicAuthorizationStatus)")
+                if authManager.isAuthenticated {
+                    // Main app content when authenticated
+                    ContentView()
+                        .environmentObject(userProfileManager)
+                        .environmentObject(musicRankingManager)
+                        .environmentObject(authManager)
+                        .onAppear {
+                            // Sync Firebase user profile with app profile
+                            syncUserProfile()
                             
-                            if musicAuthorizationStatus != .authorized {
-                                // Request authorization if needed
-                                print("Requesting MusicKit authorization...")
-                                musicAuthorizationStatus = await MusicAuthorization.request()
-                                print("Updated Music Authorization Status: \(musicAuthorizationStatus)")
-                            }
-                            
-                            // Configure MusicKit session after authorization
-                            if musicAuthorizationStatus == .authorized {
-                                do {
-                                    // Test API access with a simple catalog query
-                                    print("Testing MusicKit API connection...")
-                                    var testRequest = MusicCatalogSearchRequest(term: "test", types: [MusicKit.Song.self])
-                                    testRequest.limit = 1
-                                    let testResponse = try await testRequest.response()
-                                    print("MusicKit API connection successful - found \(testResponse.songs.count) songs")
-                                } catch {
-                                    print("MusicKit configuration error: \(error.localizedDescription)")
-                                }
-                            }
+                            // Request music authorization
+                            requestMusicAuthorization()
                         }
-                    }
                 
-                // Show a modal if authorization is needed
-                if musicAuthorizationStatus != .authorized {
+                // Show Apple Music authorization modal if needed
+                if authManager.isAuthenticated && musicAuthorizationStatus != .authorized {
                     ZStack {
                         Color.black.opacity(0.6)
                             .edgesIgnoringSafeArea(.all)
@@ -94,7 +85,28 @@ struct recordApp: App {
                         .padding()
                     }
                 }
+                } else {
+                    // Authentication flow
+                    SignInView()
+                        .environmentObject(authManager)
+                }
             }
         }
     }
-}
+    
+    private func syncUserProfile() {
+        guard let firebaseProfile = authManager.userProfile else { return }
+        
+        // Update local profile manager with Firebase data
+        userProfileManager.username = firebaseProfile.username
+        
+        // In a real app, you'd sync more profile data here
+    }
+    
+    private func requestMusicAuthorization() {
+        Task {
+            print("Requesting MusicKit authorization...")
+            musicAuthorizationStatus = await MusicAuthorization.request()
+            print("Authorization Status: \(musicAuthorizationStatus)")
+        }
+    }
