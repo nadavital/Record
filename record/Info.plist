@@ -4,5 +4,11 @@
 <dict>
 	<key>kTCCServiceMediaLibrary</key>
 	<string>This app uses Apple Music to get info about songs, albums, and artists</string>
+	<key>NSAppleMusicUsageDescription</key>
+	<string>This app uses Apple Music to search for songs and albums</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+	</array>
 </dict>
 </plist>
