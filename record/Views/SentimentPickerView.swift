@@ -9,108 +9,127 @@ import SwiftUI
 
 struct SentimentPickerView: View {
     @EnvironmentObject var rankingManager: MusicRankingManager
+    @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
         ZStack {
-            // Dim background
-            Color.black.opacity(0.7)
-                .edgesIgnoringSafeArea(.all)
-            
-            // Glass card
-            VStack(spacing: 20) {
-                // Current song info
-                if let song = rankingManager.currentSong {
-                    Text("How do you feel about")
+            // Card content
+            VStack(spacing: 24) {
+                // Header
+                VStack(spacing: 8) {
+                    Image(systemName: "music.note")
+                        .font(.system(size: 18))
+                        .foregroundColor(Color.accentColor)
+                    
+                    Text("How do you feel about this song?")
                         .font(.headline)
-                        .foregroundColor(.white.opacity(0.8))
-                    
-                    Text("\"\(song.title)\"")
-                        .font(.title)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
-                        .multilineTextAlignment(.center)
-                    
-                    Text("by \(song.artist)")
-                        .font(.subheadline)
-                        .foregroundColor(.white.opacity(0.8))
+                        .foregroundColor(Color(.label))
                 }
                 
-                // Album art placeholder
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            gradient: Gradient(colors: [
-                                Color(red: 0.94, green: 0.3, blue: 0.9).opacity(0.3), 
-                                Color(red: 0.4, green: 0.2, blue: 0.9).opacity(0.3)
-                            ]), 
-                            startPoint: .topLeading, 
-                            endPoint: .bottomTrailing
+                // Song info with artwork
+                if let song = rankingManager.currentSong {
+                    VStack(spacing: 14) {
+                        // Album artwork
+                        CircleRemoteArtworkView(
+                            artworkURL: song.artworkURL,
+                            placeholderText: song.albumArt,
+                            size: 120
                         )
-                    )
-                    .frame(width: 150, height: 150)
-                    .overlay(
-                        Circle()
-                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                    )
-                    .shadow(color: Color(red: 0.94, green: 0.3, blue: 0.9).opacity(0.5), radius: 10)
+                        .shadow(radius: 3)
+                        
+                        // Song title and artist
+                        VStack(spacing: 4) {
+                            Text(song.title)
+                                .font(.title3)
+                                .fontWeight(.bold)
+                                .foregroundColor(Color(.label))
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal)
+                            
+                            Text(song.artist)
+                                .font(.subheadline)
+                                .foregroundColor(Color(.secondaryLabel))
+                        }
+                    }
+                    .padding(.vertical, 10)
+                }
                 
-                // Sentiment buttons
-                VStack(spacing: 15) {
-                    ForEach(SongSentiment.allCases.filter { $0 != .neutral }, id: \.self) { sentiment in
-                        Button(action: {
-                            rankingManager.setSentiment(sentiment)
-                        }) {
-                            Text(sentiment.rawValue)
-                                .font(.headline)
-                                .foregroundColor(.white)
-                                .padding()
-                                .frame(maxWidth: .infinity)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 15)
-                                        .fill(sentiment.color.opacity(0.2))
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 15)
-                                                .stroke(sentiment.color.opacity(0.5), lineWidth: 1)
-                                        )
-                                )
-                                .shadow(color: sentiment.color.opacity(0.3), radius: 5)
+                // Sentiment buttons in a grid
+                VStack(spacing: 16) {
+                    Text("Select a rating")
+                        .font(.subheadline)
+                        .foregroundColor(Color(.secondaryLabel))
+                    
+                    HStack(spacing: 20) {
+                        ForEach(SongSentiment.allCases.filter { $0 != .neutral }, id: \.self) { sentiment in
+                            Button(action: {
+                                withAnimation(.spring()) {
+                                    rankingManager.setSentiment(sentiment)
+                                }
+                            }) {
+                                VStack(spacing: 8) {
+                                    // Icon in a circle with adaptive colors
+                                    ZStack {
+                                        Circle()
+                                            .fill(
+                                                colorScheme == .dark ? 
+                                                    sentiment.darkModeColor.opacity(0.2) : 
+                                                    sentiment.lightModeColor.opacity(0.15)
+                                            )
+                                            .frame(width: 60, height: 60)
+                                        
+                                        Image(systemName: sentiment.icon)
+                                            .font(.system(size: 26))
+                                            .foregroundColor(
+                                                colorScheme == .dark ? 
+                                                    sentiment.darkModeColor : 
+                                                    sentiment.lightModeColor
+                                            )
+                                    }
+                                    
+                                    // Label
+                                    Text(sentiment.rawValue)
+                                        .font(.caption)
+                                        .fontWeight(.medium)
+                                        .foregroundColor(Color(.secondaryLabel))
+                                }
+                                .frame(width: 70)
+                            }
+                            .buttonStyle(PlainButtonStyle())
                         }
                     }
                 }
-                .padding(.horizontal)
+                .padding(.vertical, 10)
                 
-                // Cancel button
-                Button("Cancel") {
-                    rankingManager.finishRanking()
+                // Cancel button in standard iOS style
+                Button(action: {
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        rankingManager.cancelRanking()
+                    }
+                }) {
+                    Text("Cancel")
+                        .foregroundColor(.accentColor)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(Color(.systemBackground))
+                                .shadow(color: Color(.systemGray4).opacity(0.3), radius: 2, y: 1)
+                        )
                 }
-                .foregroundColor(.white.opacity(0.6))
-                .padding()
+                .padding(.top, 10)
             }
-            .padding(30)
+            .padding(24)
             .background(
-                RoundedRectangle(cornerRadius: 25)
-                    .fill(Color.black.opacity(0.5))
-                    .background(
-                        VisualEffectBlur(blurStyle: .systemUltraThinMaterialDark)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 25)
-                            .stroke(
-                                LinearGradient(
-                                    gradient: Gradient(colors: [
-                                        Color.white.opacity(0.3),
-                                        Color.white.opacity(0.1)
-                                    ]),
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1
-                            )
-                    )
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color(.systemGroupedBackground))
             )
-            .shadow(color: Color(red: 0.94, green: 0.3, blue: 0.9).opacity(0.3), radius: 20)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color(.separator).opacity(0.3), lineWidth: 0.5)
+            )
+            .shadow(color: Color(.sRGBLinear, white: 0, opacity: 0.2), radius: 15)
             .frame(maxWidth: 350)
-            .padding()
         }
     }
 }

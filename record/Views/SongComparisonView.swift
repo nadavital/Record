@@ -9,116 +9,207 @@ import SwiftUI
 
 struct SongComparisonView: View {
     @EnvironmentObject var rankingManager: MusicRankingManager
+    @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
         ZStack {
-            // Dim background
-            Color.black.opacity(0.7)
-                .edgesIgnoringSafeArea(.all)
-            
-            // Comparison card
-            VStack(spacing: 25) {
-                Text("Which song do you prefer?")
-                    .font(.title3)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.white)
+            // Card content
+            VStack(spacing: 20) {
+                // Header
+                VStack(spacing: 8) {
+                    Image(systemName: "arrow.up.arrow.down")
+                        .font(.system(size: 18))
+                        .foregroundColor(Color.accentColor)
+                    
+                    Text("Which song do you prefer?")
+                        .font(.headline)
+                        .foregroundColor(Color(.label))
+                }
                 
-                // Songs comparison
-                HStack(spacing: 30) {
+                // Songs comparison with improved layout
+                HStack(alignment: .top, spacing: 15) {
                     // New song
                     if let song = rankingManager.currentSong {
-                        SongComparisonCard(song: song, isNew: true)
+                        VStack {
+                            CircleRemoteArtworkView(
+                                artworkURL: song.artworkURL,
+                                placeholderText: song.albumArt,
+                                size: 90
+                            )
+                            .overlay(
+                                Circle()
+                                    .stroke(Color.accentColor, lineWidth: 2)
+                                    .opacity(0.7)
+                            )
+                            .shadow(radius: 3)
+                            
+                            Text(song.title)
+                                .font(.callout)
+                                .fontWeight(.medium)
+                                .foregroundColor(Color(.label))
+                                .lineLimit(1)
+                                .frame(width: 100)
+                                .multilineTextAlignment(.center)
+                            
+                            Text(song.artist)
+                                .font(.caption)
+                                .foregroundColor(Color(.secondaryLabel))
+                                .lineLimit(1)
+                                .frame(width: 100)
+                                .multilineTextAlignment(.center)
+                        }
                     }
                     
-                    Text("OR")
-                        .font(.headline)
-                        .foregroundColor(.white.opacity(0.6))
+                    VStack {
+                        Image(systemName: "arrow.left.arrow.right")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(Color(.tertiaryLabel))
+                        
+                        Text("VS")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(Color(.tertiaryLabel))
+                    }
+                    .padding(.top, 30)
                     
                     // Existing ranked song
                     if let song = rankingManager.comparisonSong {
-                        SongComparisonCard(song: song, isNew: false)
+                        VStack {
+                            CircleRemoteArtworkView(
+                                artworkURL: song.artworkURL,
+                                placeholderText: song.albumArt,
+                                size: 90
+                            )
+                            .overlay(
+                                Circle()
+                                    .stroke(Color.blue, lineWidth: 2)
+                                    .opacity(0.7)
+                            )
+                            .shadow(radius: 3)
+                            
+                            Text(song.title)
+                                .font(.callout)
+                                .fontWeight(.medium)
+                                .foregroundColor(Color(.label))
+                                .lineLimit(1)
+                                .frame(width: 100)
+                                .multilineTextAlignment(.center)
+                            
+                            Text(song.artist)
+                                .font(.caption)
+                                .foregroundColor(Color(.secondaryLabel))
+                                .lineLimit(1)
+                                .frame(width: 100)
+                                .multilineTextAlignment(.center)
+                        }
                     }
                 }
+                .padding(.vertical, 10)
                 
-                // Comparison buttons
-                HStack(spacing: 20) {
-                    // Prefer left (new song)
+                // Choice buttons
+                VStack(spacing: 12) {
+                    Text("Make your choice:")
+                        .font(.subheadline)
+                        .foregroundColor(Color(.secondaryLabel))
+                    
+                    // Prefer left button
                     Button(action: {
-                        rankingManager.comparePreferred(currentSongIsBetter: true)
+                        withAnimation(.spring()) {
+                            rankingManager.comparePreferred(currentSongIsBetter: true)
+                        }
                     }) {
                         HStack {
                             Image(systemName: "arrow.left")
-                            Text("This One")
+                                .font(.system(size: 14))
+                            Text("Prefer Left Song")
+                            Spacer()
                         }
-                        .fontWeight(.semibold)
+                        .padding(.horizontal)
+                        .padding(.vertical, 14)
                         .foregroundColor(.white)
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(
-                            RoundedRectangle(cornerRadius: 15)
-                                .fill(Color.pink.opacity(0.3))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 15)
-                                        .stroke(Color.pink.opacity(0.5), lineWidth: 1)
-                                )
-                        )
+                        .background(Color.accentColor)
+                        .cornerRadius(10)
                     }
                     
-                    // Prefer right (existing song)
+                    // Prefer right button
                     Button(action: {
-                        rankingManager.comparePreferred(currentSongIsBetter: false)
+                        withAnimation(.spring()) {
+                            rankingManager.comparePreferred(currentSongIsBetter: false)
+                        }
                     }) {
                         HStack {
-                            Text("That One")
+                            Spacer()
+                            Text("Prefer Right Song")
                             Image(systemName: "arrow.right")
+                                .font(.system(size: 14))
                         }
-                        .fontWeight(.semibold)
+                        .padding(.horizontal)
+                        .padding(.vertical, 14)
                         .foregroundColor(.white)
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(
-                            RoundedRectangle(cornerRadius: 15)
-                                .fill(Color.blue.opacity(0.3))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 15)
-                                        .stroke(Color.blue.opacity(0.5), lineWidth: 1)
+                        .background(Color.blue)
+                        .cornerRadius(10)
+                    }
+                    
+                    // Too close button with a more subtle design
+                    Button(action: {
+                        withAnimation(.spring()) {
+                            if let currentScore = rankingManager.currentSong?.score, 
+                               let comparisonScore = rankingManager.comparisonSong?.score {
+                                rankingManager.comparePreferred(
+                                    currentSongIsBetter: currentScore >= comparisonScore,
+                                    tooClose: true
                                 )
+                            } else {
+                                rankingManager.comparePreferred(currentSongIsBetter: true, tooClose: true)
+                            }
+                        }
+                    }) {
+                        HStack {
+                            Image(systemName: "equal.circle")
+                                .font(.system(size: 14))
+                            Text("They're too similar")
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .foregroundColor(Color(.secondaryLabel))
+                        .background(Color(.tertiarySystemBackground))
+                        .cornerRadius(10)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(Color(.systemGray4), lineWidth: 1)
                         )
                     }
                 }
+                .padding(.top, 5)
                 
-                // Cancel button
-                Button("Cancel") {
-                    rankingManager.finishRanking()
+                // Cancel button in standard iOS style
+                Button(action: {
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        rankingManager.cancelRanking()
+                    }
+                }) {
+                    Text("Cancel")
+                        .foregroundColor(.red)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(Color(.systemBackground))
+                                .shadow(color: Color(.systemGray4).opacity(0.3), radius: 2, y: 1)
+                        )
                 }
-                .foregroundColor(.white.opacity(0.6))
-                .padding(.top)
+                .padding(.top, 8)
             }
-            .padding(30)
+            .padding(24)
             .background(
-                RoundedRectangle(cornerRadius: 25)
-                    .fill(Color.black.opacity(0.5))
-                    .background(
-                        VisualEffectBlur(blurStyle: .systemUltraThinMaterialDark)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 25)
-                            .stroke(
-                                LinearGradient(
-                                    gradient: Gradient(colors: [
-                                        Color.white.opacity(0.3),
-                                        Color.white.opacity(0.1)
-                                    ]),
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1
-                            )
-                    )
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color(.systemGroupedBackground))
             )
-            .shadow(color: Color(red: 0.94, green: 0.3, blue: 0.9).opacity(0.3), radius: 20)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color(.separator).opacity(0.3), lineWidth: 0.5)
+            )
+            .shadow(color: Color(.sRGBLinear, white: 0, opacity: 0.2), radius: 15)
             .frame(maxWidth: 350)
-            .padding()
         }
     }
 }
