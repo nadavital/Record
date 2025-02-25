@@ -17,7 +17,7 @@ class MusicAPIManager: ObservableObject {
     // Store fetched artwork URLs
     private var artworkCache: [String: URL] = [:]
     
-    // For catalog searches, we don't need to check authorization status
+    // Basic catalog search doesn't require user authorization
     func searchMusic(query: String) async {
         guard !query.isEmpty else {
             DispatchQueue.main.async {
@@ -33,18 +33,21 @@ class MusicAPIManager: ObservableObject {
         }
         
         do {
-            // Use catalog search - this doesn't require personal account access
+            // Create a catalog search request for songs
             var request = MusicCatalogSearchRequest(term: query, types: [MusicKit.Song.self])
             request.limit = 25
             
+            // This API call doesn't require user authorization
             let response = try await request.response()
             
             // Process search results
             var musicItems: [MusicItem] = []
             
             for song in response.songs {
-                // Cache the artwork URL
-                if let artworkURL = song.artwork?.url(width: 300, height: 300) {
+                // Safely get artwork URL
+                if let artwork = song.artwork {
+                    // Use a fixed size for artwork to avoid NaN issues
+                    let artworkURL = artwork.url(width: 300, height: 300)
                     self.artworkCache[song.id.rawValue] = artworkURL
                 }
                 
@@ -73,6 +76,7 @@ class MusicAPIManager: ObservableObject {
         }
     }
     
+    // Catalog search for albums
     func searchAlbums(query: String) async {
         guard !query.isEmpty else {
             DispatchQueue.main.async {
@@ -88,18 +92,21 @@ class MusicAPIManager: ObservableObject {
         }
         
         do {
-            // Use catalog search - this doesn't require personal account access
+            // Create a catalog search request for albums
             var request = MusicCatalogSearchRequest(term: query, types: [MusicKit.Album.self])
             request.limit = 25
             
+            // This API call doesn't require user authorization
             let response = try await request.response()
             
             // Process search results
             var musicItems: [MusicItem] = []
             
             for album in response.albums {
-                // Cache the artwork URL
-                if let artworkURL = album.artwork?.url(width: 300, height: 300) {
+                // Safely get artwork URL
+                if let artwork = album.artwork {
+                    // Use a fixed size for artwork to avoid NaN issues
+                    let artworkURL = artwork.url(width: 300, height: 300)
                     self.artworkCache[album.id.rawValue] = artworkURL
                 }
                 
