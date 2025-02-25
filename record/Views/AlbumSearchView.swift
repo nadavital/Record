@@ -1,5 +1,5 @@
 //
-//  AddSongView.swift
+//  AlbumSearchView.swift
 //  record
 //
 //  Created by Nadav Avital on 2/24/25.
@@ -8,9 +8,9 @@
 import SwiftUI
 import MusicKit
 
-struct AddSongView: View {
+struct AlbumSearchView: View {
     @Environment(\.presentationMode) var presentationMode
-    @EnvironmentObject var rankingManager: MusicRankingManager
+    @EnvironmentObject var profileManager: UserProfileManager
     @StateObject private var musicAPI = MusicAPIManager()
     @State private var searchText = ""
     @State private var searchDebounce: Task<Void, Never>?
@@ -37,7 +37,7 @@ struct AddSongView: View {
                                 Image(systemName: "magnifyingglass")
                                     .foregroundColor(.white.opacity(0.6))
                                 
-                                TextField("Search for a song...", text: $searchText)
+                                TextField("Search for an album...", text: $searchText)
                                     .foregroundColor(.white)
                                     .accentColor(.white)
                                     .onChange(of: searchText) { _ in
@@ -46,7 +46,7 @@ struct AddSongView: View {
                                         searchDebounce = Task {
                                             try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 second delay
                                             if !Task.isCancelled {
-                                                await musicAPI.searchMusic(query: searchText)
+                                                await musicAPI.searchAlbums(query: searchText)
                                             }
                                         }
                                     }
@@ -94,8 +94,8 @@ struct AddSongView: View {
                                         LazyVStack(spacing: 15) {
                                             ForEach(musicAPI.searchResults) { item in
                                                 Button(action: {
-                                                    let song = musicAPI.convertToSong(item)
-                                                    rankingManager.addNewSong(song: song)
+                                                    let album = musicAPI.convertToAlbum(item)
+                                                    profileManager.pinnedAlbums.append(album)
                                                     presentationMode.wrappedValue.dismiss()
                                                 }) {
                                                     HStack {
@@ -113,17 +113,12 @@ struct AddSongView: View {
                                                             Text(item.artist)
                                                                 .font(.subheadline)
                                                                 .foregroundColor(.white.opacity(0.7))
-                                                            if item.albumName != item.title {
-                                                                Text(item.albumName)
-                                                                    .font(.caption)
-                                                                    .foregroundColor(.white.opacity(0.5))
-                                                            }
                                                         }
                                                         
                                                         Spacer()
                                                         
                                                         Image(systemName: "plus.circle")
-                                                            .foregroundColor(Color(red: 0.94, green: 0.3, blue: 0.9))
+                                                            .foregroundColor(profileManager.accentColor)
                                                     }
                                                     .padding()
                                                     .background(
@@ -144,7 +139,7 @@ struct AddSongView: View {
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                         }
                 }
-                .navigationTitle("Add Song")
+                .navigationTitle("Add Album")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbarBackground(.visible, for: .navigationBar)
                 .toolbarBackground(Color.black.opacity(0.7), for: .navigationBar)
@@ -158,6 +153,6 @@ struct AddSongView: View {
                 }
             }
         }
-        .accentColor(Color(red: 0.94, green: 0.3, blue: 0.9))
+        .accentColor(profileManager.accentColor)
     }
 }

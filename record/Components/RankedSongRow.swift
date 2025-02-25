@@ -28,14 +28,12 @@ struct RankedSongRow: View {
                         )
                 )
             
-            // Album art
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color.gray.opacity(0.3))
-                .frame(width: 50, height: 50)
-                .overlay(
-                    Text(song.albumArt.prefix(1))
-                        .foregroundColor(.white)
-                )
+            // Album art from Apple Music
+            RemoteArtworkView(
+                artworkURL: song.artworkURL,
+                placeholderText: song.albumArt,
+                size: CGSize(width: 50, height: 50)
+            )
             
             // Song details
             VStack(alignment: .leading) {

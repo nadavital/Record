@@ -13,8 +13,9 @@ struct SongComparisonCard: View {
     
     var body: some View {
         VStack {
-            // Album art placeholder
+            // Album art from Apple Music with vinyl-inspired styling
             ZStack {
+                // Background gradient based on new vs existing song
                 Circle()
                     .fill(
                         LinearGradient(
@@ -28,17 +29,21 @@ struct SongComparisonCard: View {
                     )
                     .frame(width: 100, height: 100)
                 
-                if isNew {
+                // Artwork
+                CircleRemoteArtworkView(
+                    artworkURL: song.artworkURL,
+                    placeholderText: song.albumArt,
+                    size: 100
+                )
+                .overlay(
                     Circle()
-                        .stroke(Color.pink.opacity(0.5), lineWidth: 2)
-                        .frame(width: 100, height: 100)
-                } else {
-                    Circle()
-                        .stroke(Color.blue.opacity(0.5), lineWidth: 2)
-                        .frame(width: 100, height: 100)
-                }
+                        .stroke(
+                            isNew ? Color.pink.opacity(0.5) : Color.blue.opacity(0.5),
+                            lineWidth: 2
+                        )
+                )
                 
-                // Vinyl effect
+                // Vinyl center effect
                 Circle()
                     .fill(Color.clear)
                     .frame(width: 30, height: 30)

@@ -11,7 +11,7 @@ import SwiftUI
 class UserProfileManager: ObservableObject {
     @Published var username: String = "VinylLover"
     @Published var bio: String = "Music enthusiast with eclectic taste."
-    @Published var profileImage: String = "profile_image" 
+    @Published var profileImage: String = "profile_image"
     @Published var accentColor: Color = Color(red: 0.94, green: 0.3, blue: 0.9)
     @Published var pinnedSongs: [Song] = []
     @Published var pinnedAlbums: [Album] = []
@@ -21,10 +21,18 @@ class UserProfileManager: ObservableObject {
         let title: String
         let artist: String
         let albumArt: String
+        var artworkURL: URL?
+        
+        init(id: UUID = UUID(), title: String, artist: String, albumArt: String, artworkURL: URL? = nil) {
+            self.title = title
+            self.artist = artist
+            self.albumArt = albumArt
+            self.artworkURL = artworkURL
+        }
     }
     
     init() {
-        // Sample data
+        // Sample data will be replaced with Apple Music API data
         pinnedSongs = [
             Song(title: "Blinding Lights", artist: "The Weeknd", albumArt: "blinding_lights", sentiment: .love),
             Song(title: "Levitating", artist: "Dua Lipa", albumArt: "levitating", sentiment: .love)

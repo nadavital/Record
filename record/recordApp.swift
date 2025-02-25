@@ -6,14 +6,19 @@
 //
 
 import SwiftUI
+import MusicKit
 
 @main
 struct recordApp: App {
+    // Initialize shared managers
+    @StateObject private var userProfileManager = UserProfileManager()
+    @StateObject private var musicRankingManager = MusicRankingManager()
+    
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .environmentObject(UserProfileManager())
-                .environmentObject(MusicRankingManager())
+                .environmentObject(userProfileManager)
+                .environmentObject(musicRankingManager)
         }
     }
 }
