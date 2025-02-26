@@ -63,8 +63,8 @@ struct recordApp: App {
                         .zIndex(2)
                 }
             }
-            .onChange(of: authManager.isAuthenticated) { isAuthenticated in
-                if isAuthenticated {
+            .onChange(of: authManager.isAuthenticated) {
+                if authManager.isAuthenticated {
                     checkIfUsernameNeeded()
                 }
             }
@@ -122,7 +122,7 @@ struct recordApp: App {
     private func checkMusicAuthorization() {
         Task {
             // Check current authorization status
-            musicAuthorizationStatus = await MusicAuthorization.currentStatus
+            musicAuthorizationStatus = MusicAuthorization.currentStatus
             print("Initial Music Authorization Status: \(musicAuthorizationStatus)")
             
             if musicAuthorizationStatus != .authorized {

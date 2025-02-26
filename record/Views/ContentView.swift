@@ -32,19 +32,12 @@ struct ContentView: View {
                     }
                     .tag(0)
                 
-                ExploreView()
-                    .tabItem {
-                        Image(systemName: "network")
-                        Text("Explore")
-                    }
-                    .tag(1)
-                
                 ProfileView()
                     .tabItem {
                         Image(systemName: "person.fill")
                         Text("Profile")
                     }
-                    .tag(2)
+                    .tag(1)
             }
             .accentColor(Color(red: 0.94, green: 0.3, blue: 0.9))
         }

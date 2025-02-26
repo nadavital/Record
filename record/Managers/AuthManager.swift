@@ -221,7 +221,7 @@ class AuthManager: NSObject, ObservableObject {
         
         // First check if user already exists
         db.collection("users").document(userId).getDocument { [weak self] snapshot, error in
-            guard let self = self else { return }
+            guard self != nil else { return }
             
             if let error = error {
                 print("Error checking if user exists: \(error.localizedDescription)")

@@ -77,7 +77,7 @@ struct AlbumSearchView: View {
                             TextField("Search for an album...", text: $searchText)
                                 .foregroundColor(.white)
                                 .accentColor(.white)
-                                .onChange(of: searchText) { _ in
+                                .onChange(of: searchText) {
                                     // Debounce search to avoid too many API calls
                                     searchDebounce?.cancel()
                                     searchDebounce = Task {

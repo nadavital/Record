@@ -77,7 +77,7 @@ struct AddSongView: View {
                             TextField("Search for a song...", text: $searchText)
                                 .foregroundColor(.white)
                                 .accentColor(.white)
-                                .onChange(of: searchText) { _ in
+                                .onChange(of: searchText) {
                                     // Debounce search to avoid too many API calls
                                     searchDebounce?.cancel()
                                     searchDebounce = Task {

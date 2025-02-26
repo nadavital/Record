@@ -12,11 +12,11 @@ struct Song: Identifiable, Equatable {
     let title: String
     let artist: String
     let albumArt: String
-    var sentiment: SongSentiment = .neutral
+    var sentiment: SongSentiment = .fine
     var artworkURL: URL?
     var score: Double = 0.0 // Score from 0-10 based on ranking
     
-    init(id: UUID = UUID(), title: String, artist: String, albumArt: String, sentiment: SongSentiment = .neutral, artworkURL: URL? = nil, score: Double = 0.0) {
+    init(id: UUID = UUID(), title: String, artist: String, albumArt: String, sentiment: SongSentiment = .fine, artworkURL: URL? = nil, score: Double = 0.0) {
         self.id = id
         self.title = title
         self.artist = artist

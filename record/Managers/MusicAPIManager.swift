@@ -10,6 +10,7 @@ import MusicKit
 import SwiftUI
 import os.log
 
+@MainActor
 class MusicAPIManager: ObservableObject {
     @Published var searchResults: [MusicItem] = []
     @Published var isSearching = false
@@ -75,7 +76,7 @@ class MusicAPIManager: ObservableObject {
             var musicItems: [MusicItem] = []
             
             for (index, song) in response.songs.enumerated() {
-                print("Processing song \(index+1): \(song.title) by \(song.artistName ?? "Unknown")")
+                print("Processing song \(index+1): \(song.title) by \(song.artistName)")
                 
                 // Safely get artwork URL
                 var artworkURL: URL? = nil
@@ -93,7 +94,7 @@ class MusicAPIManager: ObservableObject {
                 let item = MusicItem(
                     id: id,
                     title: song.title,
-                    artist: song.artistName ?? "Unknown Artist",
+                    artist: song.artistName,
                     albumName: song.albumTitle ?? "",
                     artworkID: id,
                     type: .song
@@ -179,7 +180,7 @@ class MusicAPIManager: ObservableObject {
             var musicItems: [MusicItem] = []
             
             for (index, album) in response.albums.enumerated() {
-                print("Processing album \(index+1): \(album.title) by \(album.artistName ?? "Unknown")")
+                print("Processing album \(index+1): \(album.title) by \(album.artistName)")
                 
                 // Safely get artwork URL
                 var artworkURL: URL? = nil
@@ -197,7 +198,7 @@ class MusicAPIManager: ObservableObject {
                 let item = MusicItem(
                     id: id,
                     title: album.title,
-                    artist: album.artistName ?? "Unknown Artist",
+                    artist: album.artistName,
                     albumName: album.title,
                     artworkID: id,
                     type: .album
@@ -258,7 +259,7 @@ class MusicAPIManager: ObservableObject {
             title: item.title,
             artist: item.artist,
             albumArt: item.id,
-            sentiment: .neutral,
+            sentiment: .fine,
             artworkURL: artworkCache[item.artworkID]
         )
     }

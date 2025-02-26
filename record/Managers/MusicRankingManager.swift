@@ -96,8 +96,6 @@ class MusicRankingManager: ObservableObject {
                     comparisonIndex = rankedSongs.count / 2 // Middle
                 case .dislike:
                     comparisonIndex = rankedSongs.count - 1 // Bottom
-                default:
-                    comparisonIndex = rankedSongs.count / 2 // Default to middle
                 }
             }
             
@@ -114,7 +112,6 @@ class MusicRankingManager: ObservableObject {
         // For larger lists, use sentiment groups to narrow the search area
         let loveIndices = rankedSongs.indices.filter { rankedSongs[$0].sentiment == .love }
         let fineIndices = rankedSongs.indices.filter { rankedSongs[$0].sentiment == .fine }
-        let dislikeIndices = rankedSongs.indices.filter { rankedSongs[$0].sentiment == .dislike }
         
         // Set bounds based on sentiment
         switch sentiment {
@@ -130,10 +127,6 @@ class MusicRankingManager: ObservableObject {
             // For Dislike songs, compare within Dislike group or after Fine/Love songs
             let lastBetterIndex = (loveIndices + fineIndices).max() ?? -1
             lowerBound = lastBetterIndex + 1
-            upperBound = rankedSongs.count - 1
-        default:
-            // Safety fallback
-            lowerBound = 0
             upperBound = rankedSongs.count - 1
         }
         
@@ -162,8 +155,6 @@ class MusicRankingManager: ObservableObject {
             case .dislike:
                 // For dislike songs, start 2/3 of the way down the dislike group
                 comparisonIndex = lowerBound + (groupSize * 2) / 3
-            default:
-                comparisonIndex = lowerBound + groupSize / 2
             }
         }
         
@@ -203,9 +194,6 @@ class MusicRankingManager: ObservableObject {
                 $0.sentiment == .fine || $0.sentiment == .love 
             }) ?? -1
             insertIndex = lastBetterIndex + 1
-        default:
-            // Default to the end
-            insertIndex = rankedSongs.count
         }
         
         // Insert song and update scores
@@ -497,8 +485,6 @@ class MusicRankingManager: ObservableObject {
             return isTop ? 6.5 : 5.5
         case .dislike:
             return isTop ? 3.0 : 2.0
-        case .neutral:
-            return isTop ? 5.0 : 5.0
         }
     }
     
@@ -518,5 +504,13 @@ class MusicRankingManager: ObservableObject {
     // Cancel ranking process (from any stage)
     func cancelRanking() {
         finishRanking()
+    }
+    
+    // Remove a song from the ranked list
+    func removeSong(_ song: Song) {
+        if let index = rankedSongs.firstIndex(where: { $0.id == song.id }) {
+            rankedSongs.remove(at: index)
+            updateScores()
+        }
     }
 }

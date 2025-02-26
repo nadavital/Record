@@ -8,7 +8,7 @@
 import SwiftUI
 
 // Enhanced helper for glass blur effect with vibrancy and adaptive styling
-struct VisualEffectBlur: UIViewRepresentable {
+struct VisualEffectBlur: UIViewRepresentable, ShapeStyle {
     var blurStyle: UIBlurEffect.Style
     var vibrancyStyle: UIVibrancyEffectStyle? = nil
     var blurIntensity: CGFloat? = nil
