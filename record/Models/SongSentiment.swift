@@ -16,8 +16,8 @@ enum SongSentiment: String, CaseIterable {
     var color: Color {
         switch self {
         case .love: return .pink
-        case .fine: return Color.blue
-        case .dislike: return Color.gray
+        case .fine: return .blue
+        case .dislike: return .gray
         }
     }
     
