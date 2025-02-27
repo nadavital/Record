@@ -17,6 +17,7 @@ struct SongComparisonTile: View {
                 size: CGSize(width: 90, height: 90)
             )
             .shadow(radius: 3)
+            .id(song.id) // Force view refresh when song changes
             
             Text(song.title)
                 .font(.callout)

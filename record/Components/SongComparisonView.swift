@@ -39,9 +39,11 @@ struct SongComparisonView: View {
                 
                 // Songs comparison with improved layout
                 HStack(alignment: .top, spacing: 15) {
-                    // New song
+                    // New song with transition
                     if let song = rankingManager.currentSong {
                         SongComparisonTile(song: song)
+                            .transition(.opacity)
+                            .id("current-\(song.id)")
                     }
                     
                     VStack {
@@ -55,12 +57,15 @@ struct SongComparisonView: View {
                     }
                     .padding(.top, 30)
                     
-                    // Existing ranked song
+                    // Existing ranked song with transition
                     if let song = rankingManager.comparisonSong {
                         SongComparisonTile(song: song)
+                            .transition(.opacity)
+                            .id("comparison-\(song.id)")
                     }
                 }
                 .padding(.horizontal, 20)
+                .animation(.easeInOut(duration: 0.2), value: rankingManager.comparisonSong?.id)
                 
                 // Choice buttons
                 VStack(spacing: 12) {

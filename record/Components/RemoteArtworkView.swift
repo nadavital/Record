@@ -7,6 +7,20 @@
 
 import SwiftUI
 
+// Add this at the top of the file, before RemoteArtworkView
+actor ImageCache {
+    static let shared = ImageCache()
+    private var cache: [URL: Data] = [:]
+    
+    func setImage(_ data: Data, for url: URL) {
+        cache[url] = data
+    }
+    
+    func getImage(for url: URL) -> Data? {
+        return cache[url]
+    }
+}
+
 // Conditional view modifier
 extension View {
     @ViewBuilder
@@ -99,10 +113,10 @@ struct RemoteArtworkView: View {
                 }
             }
         }
-        .onAppear {
-            loadImage()
-        }
         .shadow(color: Color(.sRGBLinear, white: 0, opacity: 0.1), radius: 2)
+        .task {
+            await loadImage()
+        }
     }
     
     // Generate a consistent gradient based on input text - optimized for light/dark mode
@@ -128,29 +142,39 @@ struct RemoteArtworkView: View {
         )
     }
     
-    // Load the image from URL
-    private func loadImage() {
-        guard let url = artworkURL, imageData == nil else {
+    // Load the image from URL or cache
+    private func loadImage() async {
+        guard let url = artworkURL else {
             isLoading = false
             return
         }
         
+        // First check the cache
+        if let cachedData = await ImageCache.shared.getImage(for: url) {
+            DispatchQueue.main.async {
+                self.imageData = cachedData
+                self.isLoading = false
+            }
+            return
+        }
+        
+        // If not in cache, load from network
         isLoading = true
         loadingFailed = false
         
-        Task {
-            do {
-                let (data, _) = try await URLSession.shared.data(from: url)
-                DispatchQueue.main.async {
-                    self.imageData = data
-                    self.isLoading = false
-                }
-            } catch {
-                print("Error loading image: \(error)")
-                DispatchQueue.main.async {
-                    self.isLoading = false
-                    self.loadingFailed = true
-                }
+        do {
+            let (data, _) = try await URLSession.shared.data(from: url)
+            // Store in cache
+            await ImageCache.shared.setImage(data, for: url)
+            DispatchQueue.main.async {
+                self.imageData = data
+                self.isLoading = false
+            }
+        } catch {
+            print("Error loading image: \(error)")
+            DispatchQueue.main.async {
+                self.isLoading = false
+                self.loadingFailed = true
             }
         }
     }

@@ -7,6 +7,7 @@
 
 import Foundation
 import SwiftUI
+import Combine
 
 class MusicRankingManager: ObservableObject {
     @Published var rankedSongs: [Song] = []
@@ -24,21 +25,34 @@ class MusicRankingManager: ObservableObject {
     // Track comparison history to avoid repetition
     private var comparedIndices: Set<Int> = []
     
-    // Mock data for initial setup
+    // Cancellable for data change subscription
+    private var cancellables = Set<AnyCancellable>()
+    
+    // Init method with persistence support
     init() {
-        let sampleSongs = [
-            Song(title: "Blinding Lights", artist: "The Weeknd", albumArt: "blinding_lights", sentiment: .love),
-            Song(title: "Don't Start Now", artist: "Dua Lipa", albumArt: "dont_start_now", sentiment: .love),
-            Song(title: "As It Was", artist: "Harry Styles", albumArt: "as_it_was", sentiment: .fine),
-            Song(title: "Levitating", artist: "Dua Lipa", albumArt: "levitating", sentiment: .love),
-            Song(title: "Good 4 U", artist: "Olivia Rodrigo", albumArt: "good_4_u", sentiment: .fine)
-        ]
-        rankedSongs = sampleSongs
+        // Load songs from persistence manager
+        rankedSongs = PersistenceManager.shared.loadRankedSongs()
+        
+        // If no saved songs exist, create sample songs
+        if rankedSongs.isEmpty {
+            let sampleSongs = [
+                Song(title: "Blinding Lights", artist: "The Weeknd", albumArt: "blinding_lights", sentiment: .love),
+                Song(title: "Don't Start Now", artist: "Dua Lipa", albumArt: "dont_start_now", sentiment: .love),
+                Song(title: "As It Was", artist: "Harry Styles", albumArt: "as_it_was", sentiment: .fine),
+                Song(title: "Levitating", artist: "Dua Lipa", albumArt: "levitating", sentiment: .love),
+                Song(title: "Good 4 U", artist: "Olivia Rodrigo", albumArt: "good_4_u", sentiment: .fine)
+            ]
+            rankedSongs = sampleSongs
+            saveRankedSongs() // Save initial sample data
+        }
+        
         updateScores()
+        setupDataChangeSubscription() // Set up subscription for data changes
     }
     
     // Add a new song to be ranked
     func addNewSong(song: Song) {
+        // Ensure we preserve the artworkURL when setting currentSong
         currentSong = song
         showSentimentPicker = true
     }
@@ -47,7 +61,7 @@ class MusicRankingManager: ObservableObject {
     func setSentiment(_ sentiment: SongSentiment) {
         guard var song = currentSong else { return }
         song.sentiment = sentiment
-        currentSong = song
+        currentSong = song  // Keep the same song object with updated sentiment
         showSentimentPicker = false
         
         // Skip comparison if ranked list is empty
@@ -326,6 +340,7 @@ class MusicRankingManager: ObservableObject {
             let position = comparisonIndex == 0 && !currentSongIsBetter ? 1 : 
                           (currentSongIsBetter ? comparisonIndex : comparisonIndex + 1)
             
+            // Preserve the currentSong exactly as is, including artworkURL
             rankedSongs.insert(song, at: position)
             updateScores()
             finishRanking()
@@ -377,6 +392,7 @@ class MusicRankingManager: ObservableObject {
         
         // Safety check for bounds
         let safeIndex = min(rankedSongs.count, max(0, insertionIndex))
+        // Preserve the currentSong exactly as is, including artworkURL
         rankedSongs.insert(song, at: safeIndex)
         
         // Update scores after inserting
@@ -389,6 +405,7 @@ class MusicRankingManager: ObservableObject {
     // Place song at the end without comparison
     private func placeSongAtEnd() {
         guard let song = currentSong else { return }
+        // Preserve the currentSong exactly as is, including artworkURL
         rankedSongs.append(song)
         updateScores()
         finishRanking()
@@ -432,6 +449,7 @@ class MusicRankingManager: ObservableObject {
         
         // Replace the ranked songs with the updated scored songs
         rankedSongs = updatedSongs
+        saveRankedSongs() // Save after updating scores
     }
     
     // Ensure songs are ordered by sentiment first
@@ -499,6 +517,7 @@ class MusicRankingManager: ObservableObject {
         lowerBound = 0
         upperBound = 0
         comparedIndices.removeAll()
+        saveRankedSongs() // Save after ranking is finished
     }
     
     // Cancel ranking process (from any stage)
@@ -510,6 +529,31 @@ class MusicRankingManager: ObservableObject {
     func removeSong(_ song: Song) {
         if let index = rankedSongs.firstIndex(where: { $0.id == song.id }) {
             rankedSongs.remove(at: index)
+            updateScores()
+            saveRankedSongs() // Save after removing a song
+        }
+    }
+
+    // Save songs to persistence
+    private func saveRankedSongs() {
+        PersistenceManager.shared.saveRankedSongs(rankedSongs)
+    }
+
+    // Subscribe to data change notifications from other parts of the app
+    private func setupDataChangeSubscription() {
+        PersistenceManager.shared.dataChangePublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] in
+                self?.loadSavedSongs()
+            }
+            .store(in: &cancellables)
+    }
+
+    // Load songs from persistence
+    private func loadSavedSongs() {
+        let savedSongs = PersistenceManager.shared.loadRankedSongs()
+        if (!savedSongs.isEmpty && savedSongs != rankedSongs) {
+            rankedSongs = savedSongs
             updateScores()
         }
     }

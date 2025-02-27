@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-enum SongSentiment: String, CaseIterable {
+enum SongSentiment: String, CaseIterable, Codable {
     case love = "Love It"
     case fine = "It's Fine"
     case dislike = "Dislike"
