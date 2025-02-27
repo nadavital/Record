@@ -33,7 +33,7 @@ struct RankingView: View {
         }
         
         // Then apply search text filter if needed
-        if !searchText.isEmpty {
+        if (!searchText.isEmpty) {
             return sentimentFiltered.filter { 
                 $0.title.localizedCaseInsensitiveContains(searchText) || 
                 $0.artist.localizedCaseInsensitiveContains(searchText)
@@ -45,9 +45,18 @@ struct RankingView: View {
     
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
+            VStack(spacing: 8) {
                 // Custom filter bar component
                 CustomFilterBarView(selectedSegment: $selectedSegment, segmentTitles: segmentTitles)
+                
+                // Custom search bar component
+                SearchBarView(
+                    searchText: $searchText,
+                    placeholder: "Search songs or artists",
+                    onTextChange: { },
+                    onClearText: { }
+                )
+                .padding(.vertical, 4)
                 
                 // Using the extracted RankedSongListView component
                 RankedSongListView(
@@ -55,7 +64,6 @@ struct RankingView: View {
                     searchText: searchText,
                     onAddSong: { showAddSongSheet = true }
                 )
-                .searchable(text: $searchText, prompt: "Search songs or artists")
             }
             .navigationTitle("Ranked Songs")
             .toolbar {
