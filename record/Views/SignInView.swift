@@ -18,90 +18,105 @@ struct SignInView: View {
     @State private var username = ""
     
     var body: some View {
-        ZStack {
-            // Background
-            LinearGradient(
-                gradient: Gradient(colors: [
-                    Color.black,
-                    Color(red: 0.1, green: 0.05, blue: 0.2)
-                ]),
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
-            
-            VStack(spacing: 30) {
-                // App logo
-                ZStack {
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                gradient: Gradient(colors: [
-                                    profileManager.accentColor.opacity(0.3),
-                                    profileManager.accentColor.opacity(0.1)
-                                ]),
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: 150, height: 150)
-                        .overlay(
-                            Circle()
-                                .stroke(
-                                    LinearGradient(
-                                        gradient: Gradient(colors: [
-                                            profileManager.accentColor,
-                                            profileManager.accentColor.opacity(0.5)
-                                        ]),
-                                        startPoint: .top,
-                                        endPoint: .bottom
-                                    ),
-                                    lineWidth: 2
-                                )
-                        )
-                        .shadow(color: profileManager.accentColor.opacity(0.5), radius: 10)
+        NavigationView {
+            ZStack {
+                Color(.systemBackground)
+                    .ignoresSafeArea()
+                
+                VStack(spacing: 32) {
+                    Spacer()
                     
-                    Image(systemName: "music.note.list")
-                        .font(.system(size: 60))
-                        .foregroundColor(.white)
+                    // App Icon
+                    VStack(spacing: 16) {
+                        ZStack {
+                            Circle()
+                                .fill(.ultraThinMaterial)
+                                .frame(width: 120, height: 120)
+                            
+                            Image(systemName: "music.note.list")
+                                .font(.system(size: 40, weight: .semibold))
+                                .foregroundStyle(profileManager.accentColor)
+                        }
+                        
+                        VStack(spacing: 8) {
+                            Text("Record")
+                                .font(.system(size: 34, weight: .bold))
+                                .foregroundStyle(.primary)
+                            
+                            Text("Rank, share, and explore your favorite music")
+                                .font(.body)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal)
+                        }
+                    }
+                    
+                    Spacer()
+                    
+                    // Sign in button
+                    VStack(spacing: 16) {
+                        SignInWithAppleButton(
+                            onRequest: configureAppleSignInRequest,
+                            onCompletion: handleAppleSignInCompletion
+                        )
+                        .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
+                        .frame(height: 50)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        
+                        Text("By signing in, you agree to our Terms of Service and Privacy Policy")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                    }
+                    .padding(.bottom, 32)
                 }
+                .padding()
                 
-                Text("Record")
-                    .font(.system(size: 46, weight: .bold))
-                    .foregroundColor(.white)
-                
-                Text("Rank, share, and explore your favorite music")
-                    .font(.headline)
-                    .foregroundColor(.white.opacity(0.8))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
-                
-                Spacer()
-                
-                // Sign in with Apple button
-                SignInWithAppleButton(
-                    onRequest: configureAppleSignInRequest,
-                    onCompletion: handleAppleSignInCompletion
-                )
-                .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
-                .frame(height: 50)
-                .padding(.horizontal, 40)
-                
-                Text("By signing in, you agree to our Terms of Service and Privacy Policy")
-                    .font(.caption)
-                    .foregroundColor(.white.opacity(0.6))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 20)
-                    .padding(.top, 20)
-                    .padding(.bottom, 40)
-            }
-            .padding()
-            
-            // Username prompt
-            if showUsernamePrompt {
-                usernamePromptView
-                    .transition(.opacity)
-                    .zIndex(1)
+                // Username prompt overlay
+                if showUsernamePrompt {
+                    Color(.systemBackground)
+                        .opacity(0.98)
+                        .ignoresSafeArea()
+                        .overlay(
+                            VStack(spacing: 24) {
+                                Text("Create Username")
+                                    .font(.title2)
+                                    .fontWeight(.bold)
+                                
+                                Text("Please create a unique username for your profile")
+                                    .font(.body)
+                                    .foregroundStyle(.secondary)
+                                    .multilineTextAlignment(.center)
+                                
+                                TextField("Username", text: $username)
+                                    .textFieldStyle(.roundedBorder)
+                                    .textInputAutocapitalization(.never)
+                                    .disableAutocorrection(true)
+                                    .padding(.vertical)
+                                
+                                Button(action: saveUsername) {
+                                    Group {
+                                        if authManager.isLoading {
+                                            ProgressView()
+                                        } else {
+                                            Text("Continue")
+                                                .fontWeight(.semibold)
+                                        }
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding()
+                                    .background(username.count >= 3 ? profileManager.accentColor : Color.gray)
+                                    .foregroundColor(.white)
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                                }
+                                .disabled(username.count < 3 || authManager.isLoading)
+                            }
+                            .padding(24)
+                            .transition(.opacity)
+                        )
+                        .zIndex(1)
+                }
             }
         }
         .alert(isPresented: $authManager.showError) {
@@ -178,73 +193,6 @@ struct SignInView: View {
                 authManager.errorMessage = error.localizedDescription
                 authManager.showError = true
             }
-        }
-    }
-    
-    // Username prompt overlay
-    private var usernamePromptView: some View {
-        ZStack {
-            // Dimmed background
-            Color.black.opacity(0.6)
-                .ignoresSafeArea()
-            
-            // Prompt card
-            VStack(spacing: 20) {
-                Text("Create Username")
-                    .font(.title2)
-                    .fontWeight(.bold)
-                    .foregroundColor(.white)
-                
-                Text("Please create a unique username for your profile")
-                    .font(.subheadline)
-                    .foregroundColor(.white.opacity(0.8))
-                    .multilineTextAlignment(.center)
-                
-                TextField("Username", text: $username)
-                    .foregroundColor(.white)
-                    .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(Color.white.opacity(0.1))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .stroke(Color.white.opacity(0.3), lineWidth: 1)
-                            )
-                    )
-                    .autocapitalization(.none)
-                    .disableAutocorrection(true)
-                
-                Button(action: saveUsername) {
-                    if authManager.isLoading {
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                    } else {
-                        Text("Continue")
-                            .fontWeight(.semibold)
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                    }
-                }
-                .background(
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(username.count >= 3 ? profileManager.accentColor : Color.gray)
-                )
-                .disabled(username.count < 3 || authManager.isLoading)
-            }
-            .padding(30)
-            .background(
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(Color.black.opacity(0.9))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 20)
-                            .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
-                    )
-            )
-            .shadow(color: Color.black.opacity(0.5), radius: 20)
-            .padding()
         }
     }
     
