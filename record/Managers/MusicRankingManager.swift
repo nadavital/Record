@@ -54,17 +54,17 @@ class MusicRankingManager: ObservableObject {
         let (isRanked, existingSong) = isSongAlreadyRanked(title: song.title, artist: song.artist)
         
         if isRanked, let existingSong = existingSong {
-            // If song already exists, prepare for reranking
+            // If song already exists, prepare for reranking but keep the song in the list
             isReranking = true
             
-            // Remove the existing song from the ranked list before reranking
-            if let index = rankedSongs.firstIndex(where: { $0.id == existingSong.id }) {
-                rankedSongs.remove(at: index)
-            }
-        } else {
-            isReranking = false
+            // Instead of removing, we'll store the original song's details
+            // We'll only remove if the user actually confirms a new ranking
+            currentSong = existingSong // Use existing song to keep artwork URL and ID
+            showSentimentPicker = true
+            return
         }
         
+        isReranking = false
         // Ensure we preserve the artworkURL when setting currentSong
         currentSong = song
         showSentimentPicker = true
@@ -77,11 +77,29 @@ class MusicRankingManager: ObservableObject {
         currentSong = song  // Keep the same song object with updated sentiment
         showSentimentPicker = false
         
+        // If we're re-ranking, remove the original song now that user has confirmed
+        if isReranking {
+            // Find and remove the existing song with the same ID
+            if let index = rankedSongs.firstIndex(where: { $0.id == song.id }) {
+                rankedSongs.remove(at: index)
+            }
+        }
+        
         // Skip comparison if ranked list is empty
         if rankedSongs.isEmpty {
             rankedSongs.append(song)
             updateScores()
             finishRanking()
+            return
+        }
+        
+        // Check if there are any songs with this sentiment already in the list
+        let songsWithSameSentiment = rankedSongs.filter { $0.sentiment == sentiment }
+        
+        // If no songs with this sentiment exist yet, we can place it without comparison
+        if songsWithSameSentiment.isEmpty {
+            // Place the song in the correct position based on sentiment
+            placeSongBySentiment()
             return
         }
         
@@ -109,26 +127,28 @@ class MusicRankingManager: ObservableObject {
         // First, ensure songs are in proper sentiment order
         ensureSentimentOrder()
         
-        // When list is small, use a simpler approach to establish rough position
-        if rankedSongs.count <= 4 {
-            // For very small lists, start with the middle or appropriate end
-            if rankedSongs.count <= 2 {
-                comparisonIndex = 0 // Start with first song
+        // Filter songs to only those with matching sentiment for comparison
+        let sameSentimentIndices = rankedSongs.indices.filter { rankedSongs[$0].sentiment == sentiment }
+        
+        // If no songs with same sentiment, place by sentiment without comparison
+        if sameSentimentIndices.isEmpty {
+            placeSongBySentiment()
+            return
+        }
+        
+        // Set bounds to only include songs with the same sentiment
+        lowerBound = sameSentimentIndices.first ?? 0
+        upperBound = sameSentimentIndices.last ?? 0
+        
+        // When list of same sentiment is small, use a simpler approach
+        if sameSentimentIndices.count <= 4 {
+            // For very small groups, start with the middle or appropriate end
+            if sameSentimentIndices.count <= 2 {
+                comparisonIndex = lowerBound // Start with first matching song
             } else {
-                // With 3-4 songs, pick a more strategic starting point based on sentiment
-                switch sentiment {
-                case .love:
-                    comparisonIndex = 0 // Compare with top song
-                case .fine:
-                    comparisonIndex = rankedSongs.count / 2 // Middle
-                case .dislike:
-                    comparisonIndex = rankedSongs.count - 1 // Bottom
-                }
+                // With 3-4 matching songs, start in the middle of the sentiment group
+                comparisonIndex = lowerBound + (upperBound - lowerBound) / 2
             }
-            
-            // Set bounds to include the entire list initially
-            lowerBound = 0
-            upperBound = rankedSongs.count - 1
             
             // Mark as compared and set comparison song
             comparedIndices.insert(comparisonIndex)
@@ -136,54 +156,11 @@ class MusicRankingManager: ObservableObject {
             return
         }
         
-        // For larger lists, use sentiment groups to narrow the search area
-        let loveIndices = rankedSongs.indices.filter { rankedSongs[$0].sentiment == .love }
-        let fineIndices = rankedSongs.indices.filter { rankedSongs[$0].sentiment == .fine }
-        
-        // Set bounds based on sentiment
-        switch sentiment {
-        case .love:
-            // For Love songs, only compare within the Love group or at the top
-            lowerBound = 0
-            upperBound = loveIndices.isEmpty ? 0 : loveIndices.last!
-        case .fine:
-            // For Fine songs, compare within the Fine group or right after Love songs
-            lowerBound = loveIndices.isEmpty ? 0 : loveIndices.last! + 1
-            upperBound = fineIndices.isEmpty ? lowerBound : fineIndices.last!
-        case .dislike:
-            // For Dislike songs, compare within Dislike group or after Fine/Love songs
-            let lastBetterIndex = (loveIndices + fineIndices).max() ?? -1
-            lowerBound = lastBetterIndex + 1
-            upperBound = rankedSongs.count - 1
-        }
-        
-        // Safety adjustments for bounds
-        lowerBound = max(0, min(lowerBound, rankedSongs.count - 1))
-        upperBound = max(lowerBound, min(upperBound, rankedSongs.count - 1))
-        
-        // For larger sentiment groups, pick a more strategic starting point
+        // For larger lists of same sentiment, pick strategic starting point
         let groupSize = upperBound - lowerBound + 1
         
-        if groupSize <= 1 {
-            // If only one position is valid, use it
-            comparisonIndex = lowerBound
-        } else if groupSize <= 4 {
-            // For small groups, start in the middle
-            comparisonIndex = lowerBound + groupSize / 2
-        } else {
-            // For larger groups, use the 1/3 or 2/3 position based on sentiment
-            switch sentiment {
-            case .love:
-                // For love songs, start 1/3 of the way down the love group
-                comparisonIndex = lowerBound + groupSize / 3
-            case .fine:
-                // For fine songs, start right in the middle of the fine group
-                comparisonIndex = lowerBound + groupSize / 2
-            case .dislike:
-                // For dislike songs, start 2/3 of the way down the dislike group
-                comparisonIndex = lowerBound + (groupSize * 2) / 3
-            }
-        }
+        // Start in the middle of the sentiment group
+        comparisonIndex = lowerBound + groupSize / 2
         
         // Final safety check for valid index
         comparisonIndex = max(lowerBound, min(upperBound, comparisonIndex))
@@ -536,7 +513,19 @@ class MusicRankingManager: ObservableObject {
     
     // Cancel ranking process (from any stage)
     func cancelRanking() {
-        finishRanking()
+        // Clear all ranking states
+        currentSong = nil
+        comparisonSong = nil
+        comparisonIndex = 0
+        isRanking = false
+        isReranking = false  // Reset the reranking flag
+        showComparison = false
+        showSentimentPicker = false
+        lowerBound = 0
+        upperBound = 0
+        comparedIndices.removeAll()
+        
+        // No need to call updateScores() or saveRankedSongs() as we're not changing the song list
     }
     
     // Remove a song from the ranked list
