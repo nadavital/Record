@@ -64,7 +64,7 @@ struct RankedSongRow: View {
             Button {
                 onChangeSentiment(song)
             } label: {
-                Label("Change Sentiment", systemImage: "heart.fill")
+                Label("Re-rank", systemImage: "arrow.counterclockwise")
             }
         }
         .swipeActions(edge: .trailing) {
@@ -77,9 +77,9 @@ struct RankedSongRow: View {
             Button {
                 onChangeSentiment(song)
             } label: {
-                Label("Sentiment", systemImage: "heart.fill")
+                Label("Re-rank", systemImage: "arrow.counterclockwise")
             }
-            .tint(.pink)
+            .tint(.blue)
         }
     }
     

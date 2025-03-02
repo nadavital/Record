@@ -106,45 +106,15 @@ struct ProfileView: View {
                 .font(.title2)
                 .fontWeight(.bold)
             
-            // Bio - Editable with tap
-            if editingBio {
-                TextField("Add a bio", text: $tempBio, axis: .vertical)
-                    .font(.subheadline)
-                    .multilineTextAlignment(.center)
-                    .padding()
-                    .background(Color(.tertiarySystemBackground))
-                    .cornerRadius(8)
-                    .padding(.horizontal)
-                    .onAppear {
-                        tempBio = profileManager.bio
-                    }
-                
-                Button {
-                    profileManager.bio = tempBio
-                    profileManager.saveUserProfile() // Save bio to persistence
-                    editingBio = false
-                } label: {
-                    Text("Save")
-                        .fontWeight(.medium)
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 8)
-                        .background(profileManager.accentColor)
-                        .cornerRadius(20)
-                }
-                .padding(.top, 4)
-            } else {
-                Text(profileManager.bio.isEmpty ? "Tap to add bio" : profileManager.bio)
-                    .font(.subheadline)
-                    .foregroundColor(profileManager.bio.isEmpty ? .secondary : .primary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 32)
-                    .onTapGesture {
-                        editingBio = true
-                    }
-            }
+            // Bio
+            Text(profileManager.bio.isEmpty ? "Add bio in settings" : profileManager.bio)
+                .font(.subheadline)
+                .foregroundColor(profileManager.bio.isEmpty ? .secondary : .primary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
         }
         .padding()
+        .frame(maxWidth: .infinity)
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(Color(.secondarySystemGroupedBackground))

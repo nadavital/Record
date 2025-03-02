@@ -22,7 +22,7 @@ struct RankedSongListView: View {
             } else {
                 ForEach(filteredSongs) { song in
                     RankedSongRow(
-                        rank: rankingManager.rankedSongs.firstIndex(where: { $0.id == song.id })! + 1,
+                        rank: (rankingManager.rankedSongs.firstIndex(where: { $0.id == song.id }) ?? -1) + 1,
                         song: song,
                         onDelete: { song in
                             rankingManager.removeSong(song)

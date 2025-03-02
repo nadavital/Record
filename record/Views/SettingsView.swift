@@ -16,7 +16,11 @@ struct SettingsView: View {
     @State private var showUsernamePrompt = false
     @State private var editingUsername = false
     @State private var newUsername = ""
-    
+    // Bio editing state
+    @State private var editingBio = false
+    @State private var tempBio = ""
+    @State private var showSaveSuccess = false // Add feedback for successful saves
+
     // Theme color options matching the app's design
     private let colorOptions = [
         Color(red: 0.94, green: 0.3, blue: 0.9),   // Pink
@@ -30,7 +34,7 @@ struct SettingsView: View {
         NavigationStack {
             List {
                 // Profile section
-                Section(header: Text("Profile")) {
+                Section {
                     // Username
                     if editingUsername {
                         TextField("Username", text: $newUsername)
@@ -44,8 +48,12 @@ struct SettingsView: View {
                                         authManager.updateUsername(username: newUsername) { _, _ in }
                                     }
                                     editingUsername = false
+                                    showSaveSuccess = true
                                 }
                             }
+                        Text("Tap return to save your new username")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     } else {
                         HStack {
                             Label("Username", systemImage: "person")
@@ -58,6 +66,55 @@ struct SettingsView: View {
                             editingUsername = true
                         }
                     }
+
+                    // Bio
+                    if editingBio {
+                        VStack(alignment: .leading, spacing: 8) {
+                            TextField("Tell us about yourself!", text: $tempBio, axis: .vertical)
+                                .textFieldStyle(.roundedBorder)
+                                .lineLimit(3...6)
+                            
+                            HStack {
+                                Text("\(tempBio.count)/150 characters")
+                                    .font(.caption)
+                                    .foregroundColor(tempBio.count > 150 ? .red : .secondary)
+                                
+                                Spacer()
+                                
+                                Button("Save") {
+                                    if tempBio.count <= 150 {
+                                        profileManager.bio = tempBio
+                                        profileManager.saveUserProfile()
+                                        editingBio = false
+                                        showSaveSuccess = true
+                                    }
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .disabled(tempBio.count > 150)
+                                
+                                Button("Cancel") {
+                                    editingBio = false
+                                    tempBio = profileManager.bio
+                                }
+                                .buttonStyle(.bordered)
+                            }
+                        }
+                        .onAppear {
+                            tempBio = profileManager.bio
+                        }
+                    } else {
+                        HStack {
+                            Label("Bio", systemImage: "text.quote")
+                            Spacer()
+                            Text(profileManager.bio.isEmpty ? "Add a bio to your profile" : profileManager.bio)
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.trailing)
+                        }
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            editingBio = true
+                        }
+                    }
                     
                     if let email = authManager.email {
                         HStack {
@@ -67,10 +124,14 @@ struct SettingsView: View {
                                 .foregroundColor(.secondary)
                         }
                     }
+                } header: {
+                    Text("Profile")
+                } footer: {
+                    Text("Customize how others see you on Record")
                 }
                 
                 // Appearance section
-                Section(header: Text("Appearance")) {
+                Section {
                     HStack {
                         Text("Theme Color")
                         Spacer()
@@ -83,13 +144,19 @@ struct SettingsView: View {
                                         .stroke(Color.primary, lineWidth: profileManager.accentColor == color ? 2 : 0)
                                 )
                                 .onTapGesture {
-                                    profileManager.accentColor = color
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                                        profileManager.accentColor = color
+                                    }
                                 }
                         }
                     }
                     .padding(.vertical, 4)
+                } header: {
+                    Text("Appearance")
+                } footer: {
+                    Text("Pick a color that matches your style")
                 }
-                
+
                 // Account section
                 Section(header: Text("Account")) {
                     Button(role: .destructive) {
@@ -137,6 +204,11 @@ struct SettingsView: View {
                 }
             } message: {
                 Text("Are you sure you want to sign out?")
+            }
+            .alert("Success!", isPresented: $showSaveSuccess) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Your changes have been saved.")
             }
         }
         .tint(profileManager.accentColor)

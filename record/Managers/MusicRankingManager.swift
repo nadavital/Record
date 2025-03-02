@@ -30,26 +30,12 @@ class MusicRankingManager: ObservableObject {
     
     // Init method with persistence support
     init() {
-        // Load songs from persistence manager
+        // Load saved songs
         rankedSongs = PersistenceManager.shared.loadRankedSongs()
-        
-        // If no saved songs exist, create sample songs
-        if rankedSongs.isEmpty {
-            let sampleSongs = [
-                Song(title: "Blinding Lights", artist: "The Weeknd", albumArt: "blinding_lights", sentiment: .love),
-                Song(title: "Don't Start Now", artist: "Dua Lipa", albumArt: "dont_start_now", sentiment: .love),
-                Song(title: "As It Was", artist: "Harry Styles", albumArt: "as_it_was", sentiment: .fine),
-                Song(title: "Levitating", artist: "Dua Lipa", albumArt: "levitating", sentiment: .love),
-                Song(title: "Good 4 U", artist: "Olivia Rodrigo", albumArt: "good_4_u", sentiment: .fine)
-            ]
-            rankedSongs = sampleSongs
-            saveRankedSongs() // Save initial sample data
-        }
-        
         updateScores()
         setupDataChangeSubscription() // Set up subscription for data changes
     }
-    
+
     // Add a new song to be ranked
     func addNewSong(song: Song) {
         // Ensure we preserve the artworkURL when setting currentSong
@@ -435,15 +421,15 @@ class MusicRankingManager: ObservableObject {
         var updatedSongs: [Song] = []
         
         // Score each sentiment group separately
-        if !loveGroup.isEmpty {
+        if (!loveGroup.isEmpty) {
             updatedSongs.append(contentsOf: scoreGroup(loveGroup, scoreRange: (7.0, 10.0)))
         }
         
-        if !fineGroup.isEmpty {
+        if (!fineGroup.isEmpty) {
             updatedSongs.append(contentsOf: scoreGroup(fineGroup, scoreRange: (4.0, 6.9)))
         }
         
-        if !dislikeGroup.isEmpty {
+        if (!dislikeGroup.isEmpty) {
             updatedSongs.append(contentsOf: scoreGroup(dislikeGroup, scoreRange: (1.0, 3.9)))
         }
         

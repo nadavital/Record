@@ -9,8 +9,8 @@ import SwiftUI
 import Combine
 
 class UserProfileManager: ObservableObject {
-    @Published var username: String = "VinylLover"
-    @Published var bio: String = "Music enthusiast with eclectic taste."
+    @Published var username: String = ""
+    @Published var bio: String = ""
     @Published var profileImage: String = "profile_image"
     @Published var accentColor: Color = Color(red: 0.94, green: 0.3, blue: 0.9)
     @Published var pinnedSongs: [Song] = []
@@ -43,39 +43,10 @@ class UserProfileManager: ObservableObject {
             self.accentColor = profile.accentColor
         }
         
-        // Load pinned songs
+        // Load pinned songs, albums, and artists
         self.pinnedSongs = PersistenceManager.shared.loadPinnedSongs()
-        
-        // Load pinned albums
         self.pinnedAlbums = PersistenceManager.shared.loadPinnedAlbums()
-        
-        // Load pinned artists
         self.pinnedArtists = PersistenceManager.shared.loadPinnedArtists()
-        
-        // If no data exists, use sample data
-        if pinnedSongs.isEmpty {
-            pinnedSongs = [
-                Song(title: "Blinding Lights", artist: "The Weeknd", albumArt: "blinding_lights", sentiment: .love),
-                Song(title: "Levitating", artist: "Dua Lipa", albumArt: "levitating", sentiment: .love)
-            ]
-            savePinnedSongs()
-        }
-        
-        if pinnedAlbums.isEmpty {
-            pinnedAlbums = [
-                Album(title: "Future Nostalgia", artist: "Dua Lipa", albumArt: "future_nostalgia"),
-                Album(title: "After Hours", artist: "The Weeknd", albumArt: "after_hours")
-            ]
-            savePinnedAlbums()
-        }
-        
-        if pinnedArtists.isEmpty {
-            pinnedArtists = [
-                Artist(name: "The Weeknd"),
-                Artist(name: "Dua Lipa")
-            ]
-            savePinnedArtists()
-        }
     }
     
     // Save profile data when it changes

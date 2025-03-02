@@ -176,8 +176,8 @@ class PersistenceManager {
         let a = profile["accentColorA"] as? CGFloat ?? 1.0
         
         return (
-            username: profile["username"] as? String ?? "VinylLover",
-            bio: profile["bio"] as? String ?? "Music enthusiast with eclectic taste.",
+            username: profile["username"] as? String ?? "",
+            bio: profile["bio"] as? String ?? "",
             profileImage: profile["profileImage"] as? String ?? "profile_image",
             accentColor: Color(red: Double(r), green: Double(g), blue: Double(b), opacity: Double(a))
         )
