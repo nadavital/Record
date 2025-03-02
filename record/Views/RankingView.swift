@@ -76,7 +76,7 @@ struct RankingView: View {
                 }
             }
             .sheet(isPresented: $showAddSongSheet) {
-                AddSongView()
+                UnifiedSearchView(searchType: .song)
             }
             .overlay {
                 // Overlays for ranking process

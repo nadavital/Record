@@ -18,6 +18,7 @@ class PersistenceManager {
         static let rankedSongs = "rankedSongs"
         static let pinnedSongs = "pinnedSongs"
         static let pinnedAlbums = "pinnedAlbums"
+        static let pinnedArtists = "pinnedArtists"
         static let userProfile = "userProfile"
         static let artworkCache = "artworkCache"
     }
@@ -50,7 +51,7 @@ class PersistenceManager {
         dataChangeSubject.send()
     }
     
-    func savePinnedAlbums(_ albums: [UserProfileManager.Album]) {
+    func savePinnedAlbums(_ albums: [Album]) {
         do {
             let encoder = JSONEncoder()
             let data = try encoder.encode(albums)
@@ -66,6 +67,25 @@ class PersistenceManager {
             dataChangeSubject.send()
         } catch {
             print("Error saving albums: \(error.localizedDescription)")
+        }
+    }
+    
+    func savePinnedArtists(_ artists: [Artist]) {
+        do {
+            let encoder = JSONEncoder()
+            let data = try encoder.encode(artists)
+            UserDefaults.standard.set(data, forKey: Keys.pinnedArtists)
+            
+            // Extract and cache artwork URLs
+            for artist in artists {
+                if let url = artist.artworkURL {
+                    artworkCache[artist.id.uuidString] = url.absoluteString
+                }
+            }
+            saveArtworkCache()
+            dataChangeSubject.send()
+        } catch {
+            print("Error saving artists: \(error.localizedDescription)")
         }
     }
     
@@ -94,14 +114,14 @@ class PersistenceManager {
         return load(forKey: Keys.pinnedSongs) ?? []
     }
     
-    func loadPinnedAlbums() -> [UserProfileManager.Album] {
+    func loadPinnedAlbums() -> [Album] {
         guard let data = UserDefaults.standard.data(forKey: Keys.pinnedAlbums) else {
             return []
         }
         
         do {
             let decoder = JSONDecoder()
-            let albums = try decoder.decode([UserProfileManager.Album].self, from: data)
+            let albums = try decoder.decode([Album].self, from: data)
             
             // Restore artwork URLs from cache
             var restoredAlbums = albums
@@ -115,6 +135,31 @@ class PersistenceManager {
             return restoredAlbums
         } catch {
             print("Error loading albums: \(error.localizedDescription)")
+            return []
+        }
+    }
+    
+    func loadPinnedArtists() -> [Artist] {
+        guard let data = UserDefaults.standard.data(forKey: Keys.pinnedArtists) else {
+            return []
+        }
+        
+        do {
+            let decoder = JSONDecoder()
+            let artists = try decoder.decode([Artist].self, from: data)
+            
+            // Restore artwork URLs from cache
+            var restoredArtists = artists
+            for i in 0..<restoredArtists.count {
+                let artistId = restoredArtists[i].id.uuidString
+                if let urlString = artworkCache[artistId], let url = URL(string: urlString) {
+                    restoredArtists[i].artworkURL = url
+                }
+            }
+            
+            return restoredArtists
+        } catch {
+            print("Error loading artists: \(error.localizedDescription)")
             return []
         }
     }
@@ -192,6 +237,7 @@ class PersistenceManager {
         UserDefaults.standard.removeObject(forKey: Keys.rankedSongs)
         UserDefaults.standard.removeObject(forKey: Keys.pinnedSongs)
         UserDefaults.standard.removeObject(forKey: Keys.pinnedAlbums)
+        UserDefaults.standard.removeObject(forKey: Keys.pinnedArtists)
         UserDefaults.standard.removeObject(forKey: Keys.userProfile)
         UserDefaults.standard.removeObject(forKey: Keys.artworkCache)
         artworkCache.removeAll()

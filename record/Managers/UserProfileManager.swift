@@ -15,61 +15,10 @@ class UserProfileManager: ObservableObject {
     @Published var accentColor: Color = Color(red: 0.94, green: 0.3, blue: 0.9)
     @Published var pinnedSongs: [Song] = []
     @Published var pinnedAlbums: [Album] = []
+    @Published var pinnedArtists: [Artist] = []
     
     // Track subscriptions for cleanup
     private var cancellables = Set<AnyCancellable>()
-    
-    struct Album: Identifiable, Codable {
-        let id: UUID
-        let title: String
-        let artist: String
-        let albumArt: String
-        var artworkURL: URL?
-        
-        init(id: UUID = UUID(), title: String, artist: String, albumArt: String, artworkURL: URL? = nil) {
-            self.id = id
-            self.title = title
-            self.artist = artist
-            self.albumArt = albumArt
-            self.artworkURL = artworkURL
-        }
-        
-        // Custom coding for handling URL optionals
-        enum CodingKeys: String, CodingKey {
-            case id, title, artist, albumArt
-            case artworkURLString
-        }
-        
-        init(from decoder: Decoder) throws {
-            let container = try decoder.container(keyedBy: CodingKeys.self)
-            
-            id = try container.decode(UUID.self, forKey: .id)
-            title = try container.decode(String.self, forKey: .title)
-            artist = try container.decode(String.self, forKey: .artist)
-            albumArt = try container.decode(String.self, forKey: .albumArt)
-            
-            // Handle URL conversion
-            if let urlString = try container.decodeIfPresent(String.self, forKey: .artworkURLString) {
-                artworkURL = URL(string: urlString)
-            } else {
-                artworkURL = nil
-            }
-        }
-        
-        func encode(to encoder: Encoder) throws {
-            var container = encoder.container(keyedBy: CodingKeys.self)
-            
-            try container.encode(id, forKey: .id)
-            try container.encode(title, forKey: .title)
-            try container.encode(artist, forKey: .artist)
-            try container.encode(albumArt, forKey: .albumArt)
-            
-            // Handle URL conversion
-            if let url = artworkURL {
-                try container.encode(url.absoluteString, forKey: .artworkURLString)
-            }
-        }
-    }
     
     init() {
         // Load saved data from PersistenceManager
@@ -100,6 +49,9 @@ class UserProfileManager: ObservableObject {
         // Load pinned albums
         self.pinnedAlbums = PersistenceManager.shared.loadPinnedAlbums()
         
+        // Load pinned artists
+        self.pinnedArtists = PersistenceManager.shared.loadPinnedArtists()
+        
         // If no data exists, use sample data
         if pinnedSongs.isEmpty {
             pinnedSongs = [
@@ -115,6 +67,14 @@ class UserProfileManager: ObservableObject {
                 Album(title: "After Hours", artist: "The Weeknd", albumArt: "after_hours")
             ]
             savePinnedAlbums()
+        }
+        
+        if pinnedArtists.isEmpty {
+            pinnedArtists = [
+                Artist(name: "The Weeknd"),
+                Artist(name: "Dua Lipa")
+            ]
+            savePinnedArtists()
         }
     }
     
@@ -138,6 +98,11 @@ class UserProfileManager: ObservableObject {
         PersistenceManager.shared.savePinnedAlbums(pinnedAlbums)
     }
     
+    // Save pinned artists
+    func savePinnedArtists() {
+        PersistenceManager.shared.savePinnedArtists(pinnedArtists)
+    }
+    
     // Add a song to pinned songs
     func addPinnedSong(_ song: Song) {
         // Check if we already have this song
@@ -156,6 +121,15 @@ class UserProfileManager: ObservableObject {
         }
     }
     
+    // Add an artist to pinned artists
+    func addPinnedArtist(_ artist: Artist) {
+        // Check if we already have this artist
+        if !pinnedArtists.contains(where: { $0.name == artist.name }) {
+            pinnedArtists.append(artist)
+            savePinnedArtists()
+        }
+    }
+    
     // Remove a song from pinned songs
     func removePinnedSong(_ song: Song) {
         if let index = pinnedSongs.firstIndex(where: { $0.id == song.id }) {
@@ -169,6 +143,14 @@ class UserProfileManager: ObservableObject {
         if let index = pinnedAlbums.firstIndex(where: { $0.id == album.id }) {
             pinnedAlbums.remove(at: index)
             savePinnedAlbums()
+        }
+    }
+    
+    // Remove an artist from pinned artists
+    func removePinnedArtist(_ artist: Artist) {
+        if let index = pinnedArtists.firstIndex(where: { $0.id == artist.id }) {
+            pinnedArtists.remove(at: index)
+            savePinnedArtists()
         }
     }
 }

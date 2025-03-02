@@ -17,81 +17,96 @@ class MusicAPIManager: ObservableObject {
     @Published var errorMessage: String?
     @Published var authorizationStatus: MusicAuthorization.Status = .notDetermined
     
-    // Store fetched artwork URLs
     private var artworkCache: [String: URL] = [:]
+    private var searchRequestTask: Task<Void, Never>?
     
     init() {
-        // Check current authorization status on init
         Task {
             await checkMusicAuthorizationStatus()
         }
     }
     
-    @MainActor
     func checkMusicAuthorizationStatus() async {
-        // For catalog searches, we only need developer token authorization
-        // No need for full user authorization
         self.authorizationStatus = MusicAuthorization.currentStatus
         
         if self.authorizationStatus != .authorized {
-            // Request authorization for catalog access only (no personal data)
             self.authorizationStatus = await MusicAuthorization.request()
-            print("Music authorization status: \(self.authorizationStatus)")
         }
     }
     
-    // Basic catalog search doesn't require user library authorization
+    private func performSearch<T>(
+        type: T.Type,
+        query: String,
+        transform: @escaping (T) async throws -> MusicItem
+    ) async where T: MusicCatalogSearchable {
+        do {
+            var request = MusicCatalogSearchRequest(term: query, types: [type])
+            request.limit = 25
+            
+            let response = try await request.response()
+            var musicItems: [MusicItem] = []
+            
+            switch type {
+            case is MusicKit.Song.Type:
+                for song in response.songs {
+                    if Task.isCancelled { return }
+                    if let transformed = try? await transform(song as! T) {
+                        musicItems.append(transformed)
+                    }
+                }
+            case is MusicKit.Album.Type:
+                for album in response.albums {
+                    if Task.isCancelled { return }
+                    if let transformed = try? await transform(album as! T) {
+                        musicItems.append(transformed)
+                    }
+                }
+            case is MusicKit.Artist.Type:
+                for artist in response.artists {
+                    if Task.isCancelled { return }
+                    if let transformed = try? await transform(artist as! T) {
+                        musicItems.append(transformed)
+                    }
+                }
+            default:
+                break
+            }
+            
+            if !Task.isCancelled {
+                self.searchResults = musicItems
+            }
+        } catch {
+            if !Task.isCancelled {
+                self.errorMessage = "Search failed: \(error.localizedDescription)"
+            }
+        }
+        
+        if !Task.isCancelled {
+            self.isSearching = false
+        }
+    }
+    
     func searchMusic(query: String) async {
         guard !query.isEmpty else {
-            DispatchQueue.main.async {
-                self.searchResults = []
-                self.isSearching = false
-            }
+            self.searchResults = []
             return
         }
         
-        DispatchQueue.main.async {
-            self.isSearching = true
-            self.errorMessage = nil
-        }
+        searchRequestTask?.cancel()
+        self.isSearching = true
+        self.errorMessage = nil
         
-        // Make sure we have checked authorization
-        await checkMusicAuthorizationStatus()
-        
-        do {
-            print("Starting music search for query: \(query)")
-            
-            // Create a catalog search request for songs
-            var request = MusicCatalogSearchRequest(term: query, types: [MusicKit.Song.self])
-            request.limit = 25
-            
-            print("Sending MusicKit search request...")
-            
-            // This API call uses the developer token for catalog access
-            let response = try await request.response()
-            
-            print("Received response with \(response.songs.count) songs")
-            
-            // Process search results
-            var musicItems: [MusicItem] = []
-            
-            for (index, song) in response.songs.enumerated() {
-                print("Processing song \(index+1): \(song.title) by \(song.artistName)")
+        searchRequestTask = Task {
+            await performSearch(type: MusicKit.Song.self, query: query) { song in
+                let song = song as! MusicKit.Song
+                let id = song.id.description
                 
-                // Safely get artwork URL
-                var artworkURL: URL? = nil
-                if let artwork = song.artwork {
-                    // Use a fixed size for artwork to avoid NaN issues
-                    artworkURL = artwork.url(width: 300, height: 300)
-                    let id = song.id.rawValue
-                    self.artworkCache[id] = artworkURL
-                    print("  - Artwork URL cached for ID: \(id)")
-                } else {
-                    print("  - No artwork available")
+                // Get the artwork URL if available
+                if let artwork = try? await song.artwork {
+                    self.artworkCache[id] = artwork.url(width: 300, height: 300)
                 }
                 
-                let id = song.id.rawValue
-                let item = MusicItem(
+                return MusicItem(
                     id: id,
                     title: song.title,
                     artist: song.artistName,
@@ -99,103 +114,33 @@ class MusicAPIManager: ObservableObject {
                     artworkID: id,
                     type: .song
                 )
-                musicItems.append(item)
-                print("  - Added song to results list")
-            }
-            
-            DispatchQueue.main.async {
-                print("Search completed successfully with \(musicItems.count) results")
-                self.searchResults = musicItems
-                self.isSearching = false
-            }
-        } catch {
-            print("------------- SEARCH ERROR -------------")
-            print("Error type: \(type(of: error))")
-            print("Error description: \(error.localizedDescription)")
-            print("Detailed error: \(error)")
-            
-            if let decodingError = error as? DecodingError {
-                print("Decoding error context: \(decodingError)")
-                switch decodingError {
-                case .dataCorrupted(let context):
-                    print("Data corrupted at path: \(context.codingPath)")
-                    print("Debug description: \(context.debugDescription)")
-                    if let underlyingError = context.underlyingError {
-                        print("Underlying error: \(underlyingError)")
-                    }
-                case .keyNotFound(let key, let context):
-                    print("Key not found: \(key) at path: \(context.codingPath)")
-                case .valueNotFound(let type, let context):
-                    print("Value not found for type: \(type) at path: \(context.codingPath)")
-                case .typeMismatch(let type, let context):
-                    print("Type mismatch for type: \(type) at path: \(context.codingPath)")
-                @unknown default:
-                    print("Unknown decoding error")
-                }
-            }
-            
-            print("---------------------------------------")
-            
-            DispatchQueue.main.async {
-                self.searchResults = []
-                self.isSearching = false
-                self.errorMessage = "Search failed: \(error.localizedDescription)"
             }
         }
+        
+        await searchRequestTask?.value
     }
     
-    // Catalog search for albums
     func searchAlbums(query: String) async {
         guard !query.isEmpty else {
-            DispatchQueue.main.async {
-                self.searchResults = []
-                self.isSearching = false
-            }
+            self.searchResults = []
             return
         }
         
-        DispatchQueue.main.async {
-            self.isSearching = true
-            self.errorMessage = nil
-        }
+        searchRequestTask?.cancel()
+        self.isSearching = true
+        self.errorMessage = nil
         
-        // Make sure we have checked authorization
-        await checkMusicAuthorizationStatus()
-        
-        do {
-            print("Starting album search for query: \(query)")
-            
-            // Create a catalog search request for albums
-            var request = MusicCatalogSearchRequest(term: query, types: [MusicKit.Album.self])
-            request.limit = 25
-            
-            print("Sending MusicKit album search request...")
-            
-            // This API call uses the developer token for catalog access
-            let response = try await request.response()
-            
-            print("Received album response with \(response.albums.count) albums")
-            
-            // Process search results
-            var musicItems: [MusicItem] = []
-            
-            for (index, album) in response.albums.enumerated() {
-                print("Processing album \(index+1): \(album.title) by \(album.artistName)")
+        searchRequestTask = Task {
+            await performSearch(type: MusicKit.Album.self, query: query) { album in
+                let album = album as! MusicKit.Album
+                let id = album.id.description
                 
-                // Safely get artwork URL
-                var artworkURL: URL? = nil
-                if let artwork = album.artwork {
-                    // Use a fixed size for artwork to avoid NaN issues
-                    artworkURL = artwork.url(width: 300, height: 300)
-                    let id = album.id.rawValue
-                    self.artworkCache[id] = artworkURL
-                    print("  - Album artwork URL cached for ID: \(id)")
-                } else {
-                    print("  - No album artwork available")
+                // Get the artwork URL if available
+                if let artwork = try? await album.artwork {
+                    self.artworkCache[id] = artwork.url(width: 300, height: 300)
                 }
                 
-                let id = album.id.rawValue
-                let item = MusicItem(
+                return MusicItem(
                     id: id,
                     title: album.title,
                     artist: album.artistName,
@@ -203,56 +148,56 @@ class MusicAPIManager: ObservableObject {
                     artworkID: id,
                     type: .album
                 )
-                musicItems.append(item)
-                print("  - Added album to results list")
-            }
-            
-            DispatchQueue.main.async {
-                print("Album search completed successfully with \(musicItems.count) results")
-                self.searchResults = musicItems
-                self.isSearching = false
-            }
-        } catch {
-            print("------------- ALBUM SEARCH ERROR -------------")
-            print("Error type: \(type(of: error))")
-            print("Error description: \(error.localizedDescription)")
-            print("Detailed error: \(error)")
-            
-            if let decodingError = error as? DecodingError {
-                print("Decoding error context: \(decodingError)")
-                switch decodingError {
-                case .dataCorrupted(let context):
-                    print("Data corrupted at path: \(context.codingPath)")
-                    print("Debug description: \(context.debugDescription)")
-                    if let underlyingError = context.underlyingError {
-                        print("Underlying error: \(underlyingError)")
-                    }
-                case .keyNotFound(let key, let context):
-                    print("Key not found: \(key) at path: \(context.codingPath)")
-                case .valueNotFound(let type, let context):
-                    print("Value not found for type: \(type) at path: \(context.codingPath)")
-                case .typeMismatch(let type, let context):
-                    print("Type mismatch for type: \(type) at path: \(context.codingPath)")
-                @unknown default:
-                    print("Unknown decoding error")
-                }
-            }
-            
-            print("---------------------------------------")
-            
-            DispatchQueue.main.async {
-                self.searchResults = []
-                self.isSearching = false
-                self.errorMessage = "Search failed: \(error.localizedDescription)"
             }
         }
+        
+        await searchRequestTask?.value
+    }
+    
+    func searchArtists(query: String) async {
+        guard !query.isEmpty else {
+            self.searchResults = []
+            return
+        }
+        
+        searchRequestTask?.cancel()
+        self.isSearching = true
+        self.errorMessage = nil
+        
+        searchRequestTask = Task {
+            await performSearch(type: MusicKit.Artist.self, query: query) { artist in
+                let artist = artist as! MusicKit.Artist
+                let id = artist.id.description
+                
+                // Try to get artwork from artist's top album
+                if self.artworkCache[id] == nil {
+                    var albumRequest = MusicCatalogSearchRequest(term: artist.name, types: [MusicKit.Album.self])
+                    albumRequest.limit = 1
+                    if let albumResponse = try? await albumRequest.response(),
+                       let album = albumResponse.albums.first,
+                       let artwork = try? await album.artwork {
+                        self.artworkCache[id] = artwork.url(width: 300, height: 300)
+                    }
+                }
+                
+                return MusicItem(
+                    id: id,
+                    title: artist.name,
+                    artist: artist.name,
+                    albumName: "",
+                    artworkID: id,
+                    type: .artist
+                )
+            }
+        }
+        
+        await searchRequestTask?.value
     }
     
     func getArtworkURL(for id: String) -> URL? {
         return artworkCache[id]
     }
     
-    // Convert MusicItem to Song model
     func convertToSong(_ item: MusicItem) -> Song {
         return Song(
             id: UUID(),
@@ -264,9 +209,8 @@ class MusicAPIManager: ObservableObject {
         )
     }
     
-    // Convert MusicItem to Album model
-    func convertToAlbum(_ item: MusicItem) -> UserProfileManager.Album {
-        return UserProfileManager.Album(
+    func convertToAlbum(_ item: MusicItem) -> Album {
+        return Album(
             title: item.title,
             artist: item.artist,
             albumArt: item.id,
@@ -287,5 +231,6 @@ struct MusicItem: Identifiable {
     enum MusicItemType {
         case song
         case album
+        case artist
     }
 }
