@@ -49,14 +49,28 @@ struct RankingView: View {
                 // Custom filter bar component
                 CustomFilterBarView(selectedSegment: $selectedSegment, segmentTitles: segmentTitles)
                 
-                // Custom search bar component
-                SearchBarView(
-                    searchText: $searchText,
-                    placeholder: "Search songs or artists",
-                    onTextChange: { },
-                    onClearText: { }
-                )
-                .padding(.vertical, 4)
+                // Search bar implementation
+                HStack {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundColor(.secondary)
+                        .padding(.leading, 8)
+                    
+                    TextField("Search songs or artists", text: $searchText)
+                        .padding(.vertical, 8)
+                    
+                    if !searchText.isEmpty {
+                        Button(action: {
+                            searchText = ""
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.trailing, 8)
+                    }
+                }
+                .background(Color(.secondarySystemBackground))
+                .cornerRadius(10)
+                .padding(.horizontal)
                 
                 // Using the extracted RankedSongListView component
                 RankedSongListView(

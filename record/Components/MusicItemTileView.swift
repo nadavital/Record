@@ -69,5 +69,4 @@ struct MusicItemTileView: View {
         musicAPI: mockMusicAPI
     )
     .padding()
-    .sizeThatFits
 }
