@@ -109,6 +109,8 @@ struct UnifiedSearchView: View {
         }
         .task {
             await musicAPI.checkMusicAuthorizationStatus()
+            // Set the ranking manager reference to check for already ranked songs
+            musicAPI.setRankingManager(rankingManager)
         }
     }
     
@@ -130,6 +132,10 @@ struct UnifiedSearchView: View {
                 ScrollView {
                     LazyVStack(spacing: 12) {
                         ForEach(musicAPI.searchResults) { item in
+                            // Check if song is already ranked when rendering item
+                            let rankInfo = searchType == .song ? 
+                                musicAPI.checkIfSongIsRanked(title: item.title, artist: item.artist) : nil
+                            
                             MusicItemTileView(
                                 title: item.title,
                                 artist: item.artist,
@@ -138,7 +144,10 @@ struct UnifiedSearchView: View {
                                 onSelect: {
                                     handleSelection(item)
                                 },
-                                musicAPI: musicAPI
+                                musicAPI: musicAPI,
+                                isAlreadyRanked: rankInfo?.isRanked ?? false,
+                                currentRank: rankInfo?.rank ?? 0,
+                                currentScore: rankInfo?.score ?? 0.0
                             )
                             .padding(.horizontal)
                         }

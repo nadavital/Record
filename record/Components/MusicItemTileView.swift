@@ -16,6 +16,11 @@ struct MusicItemTileView: View {
     var onSelect: () -> Void
     @ObservedObject var musicAPI = MusicAPIManager()
     
+    // Add properties for tracking if a song is already ranked
+    var isAlreadyRanked: Bool = false
+    var currentRank: Int = 0
+    var currentScore: Double = 0.0
+    
     var body: some View {
         Button(action: {
             onSelect()
@@ -46,9 +51,30 @@ struct MusicItemTileView: View {
                 
                 Spacer()
                 
-                Image(systemName: "plus.circle.fill")
-                    .font(.system(size: 22))
-                    .foregroundColor(Color.accentColor)
+                // Show ranking information or add button
+                if isAlreadyRanked {
+                    HStack(spacing: 8) {
+                        // Ranking info
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Text("#\(currentRank)")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundColor(.accentColor)
+                            
+                            Text(String(format: "%.1f", currentScore))
+                                .font(.system(size: 14))
+                                .foregroundColor(Color(.secondaryLabel))
+                        }
+                        
+                        // Re-rank button that matches the plus button style
+                        Image(systemName: "arrow.counterclockwise.circle.fill")
+                            .font(.system(size: 22))
+                            .foregroundColor(Color.accentColor)
+                    }
+                } else {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 22))
+                        .foregroundColor(Color.accentColor)
+                }
             }
             .padding()
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
@@ -60,13 +86,27 @@ struct MusicItemTileView: View {
 #Preview {
     let mockMusicAPI = MusicAPIManager()
     
-    MusicItemTileView(
-        title: "Album Title",
-        artist: "Artist Name",
-        albumName: "Album Name",
-        artworkID: "1234",
-        onSelect: {},
-        musicAPI: mockMusicAPI
-    )
+    VStack(spacing: 20) {
+        MusicItemTileView(
+            title: "Album Title",
+            artist: "Artist Name",
+            albumName: "Album Name",
+            artworkID: "1234",
+            onSelect: {},
+            musicAPI: mockMusicAPI
+        )
+        
+        MusicItemTileView(
+            title: "Ranked Song",
+            artist: "Ranked Artist",
+            albumName: "Ranked Album",
+            artworkID: "5678",
+            onSelect: {},
+            musicAPI: mockMusicAPI,
+            isAlreadyRanked: true,
+            currentRank: 3,
+            currentScore: 8.5
+        )
+    }
     .padding()
 }

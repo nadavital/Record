@@ -15,10 +15,36 @@ class MusicAPIManager: ObservableObject {
     
     private let logger = Logger(subsystem: "com.Nadav.record", category: "MusicAPIManager")
     
+    // Add reference to MusicRankingManager to check for already ranked songs
+    private var rankingManager: MusicRankingManager?
+    
     init() {
         Task {
             await checkMusicAuthorizationStatus()
         }
+    }
+    
+    // Method to set the ranking manager reference
+    func setRankingManager(_ manager: MusicRankingManager) {
+        self.rankingManager = manager
+    }
+    
+    // Method to check if a song is already ranked and get its current rank info
+    func checkIfSongIsRanked(title: String, artist: String) -> (isRanked: Bool, rank: Int, score: Double)? {
+        guard let rankingManager = self.rankingManager else {
+            return nil
+        }
+        
+        // Look for matching song by title and artist
+        if let index = rankingManager.rankedSongs.firstIndex(where: { 
+            $0.title.lowercased() == title.lowercased() && 
+            $0.artist.lowercased() == artist.lowercased() 
+        }) {
+            let song = rankingManager.rankedSongs[index]
+            return (true, index + 1, song.score)
+        }
+        
+        return (false, 0, 0.0)
     }
     
     func checkMusicAuthorizationStatus() async {

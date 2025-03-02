@@ -17,6 +17,7 @@ class MusicRankingManager: ObservableObject {
     @Published var isRanking: Bool = false
     @Published var showSentimentPicker: Bool = false
     @Published var showComparison: Bool = false
+    @Published var isReranking: Bool = false // Track if we're reranking an existing song
     
     // Tracking the search bounds for binary search
     private var lowerBound: Int = 0
@@ -35,9 +36,35 @@ class MusicRankingManager: ObservableObject {
         updateScores()
         setupDataChangeSubscription() // Set up subscription for data changes
     }
-
+    
+    // Check if a song is already ranked by title and artist
+    func isSongAlreadyRanked(title: String, artist: String) -> (isRanked: Bool, song: Song?) {
+        if let matchingIndex = rankedSongs.firstIndex(where: { 
+            $0.title.lowercased() == title.lowercased() && 
+            $0.artist.lowercased() == artist.lowercased() 
+        }) {
+            return (true, rankedSongs[matchingIndex])
+        }
+        return (false, nil)
+    }
+    
     // Add a new song to be ranked
     func addNewSong(song: Song) {
+        // Check if this song is already ranked
+        let (isRanked, existingSong) = isSongAlreadyRanked(title: song.title, artist: song.artist)
+        
+        if isRanked, let existingSong = existingSong {
+            // If song already exists, prepare for reranking
+            isReranking = true
+            
+            // Remove the existing song from the ranked list before reranking
+            if let index = rankedSongs.firstIndex(where: { $0.id == existingSong.id }) {
+                rankedSongs.remove(at: index)
+            }
+        } else {
+            isReranking = false
+        }
+        
         // Ensure we preserve the artworkURL when setting currentSong
         currentSong = song
         showSentimentPicker = true
@@ -498,6 +525,7 @@ class MusicRankingManager: ObservableObject {
         comparisonSong = nil
         comparisonIndex = 0
         isRanking = false
+        isReranking = false  // Reset the reranking flag
         showComparison = false
         showSentimentPicker = false
         lowerBound = 0
