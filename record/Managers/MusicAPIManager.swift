@@ -1,10 +1,3 @@
-//
-//  MusicAPIManager.swift
-//  record
-//
-//  Created by Nadav Avital on 2/24/25.
-//
-
 import Foundation
 import MusicKit
 import SwiftUI
@@ -18,7 +11,9 @@ class MusicAPIManager: ObservableObject {
     @Published var authorizationStatus: MusicAuthorization.Status = .notDetermined
     
     private var artworkCache: [String: URL] = [:]
-    private var searchRequestTask: Task<Void, Never>?
+    private var activeTask: Task<Void, Never>?
+    
+    private let logger = Logger(subsystem: "com.Nadav.record", category: "MusicAPIManager")
     
     init() {
         Task {
@@ -34,164 +29,148 @@ class MusicAPIManager: ObservableObject {
         }
     }
     
-    private func performSearch<T>(
-        type: T.Type,
-        query: String,
-        transform: @escaping (T) async throws -> MusicItem
-    ) async where T: MusicCatalogSearchable {
-        do {
-            var request = MusicCatalogSearchRequest(term: query, types: [type])
-            request.limit = 25
-            
-            let response = try await request.response()
-            var musicItems: [MusicItem] = []
-            
-            switch type {
-            case is MusicKit.Song.Type:
-                for song in response.songs {
-                    if Task.isCancelled { return }
-                    if let transformed = try? await transform(song as! T) {
-                        musicItems.append(transformed)
-                    }
-                }
-            case is MusicKit.Album.Type:
-                for album in response.albums {
-                    if Task.isCancelled { return }
-                    if let transformed = try? await transform(album as! T) {
-                        musicItems.append(transformed)
-                    }
-                }
-            case is MusicKit.Artist.Type:
-                for artist in response.artists {
-                    if Task.isCancelled { return }
-                    if let transformed = try? await transform(artist as! T) {
-                        musicItems.append(transformed)
-                    }
-                }
-            default:
-                break
-            }
-            
-            if !Task.isCancelled {
-                self.searchResults = musicItems
-            }
-        } catch {
-            if !Task.isCancelled {
-                self.errorMessage = "Search failed: \(error.localizedDescription)"
-            }
-        }
-        
-        if !Task.isCancelled {
-            self.isSearching = false
-        }
-    }
-    
     func searchMusic(query: String) async {
-        guard !query.isEmpty else {
-            self.searchResults = []
-            return
-        }
-        
-        searchRequestTask?.cancel()
-        self.isSearching = true
-        self.errorMessage = nil
-        
-        searchRequestTask = Task {
-            await performSearch(type: MusicKit.Song.self, query: query) { song in
-                let song = song as! MusicKit.Song
-                let id = song.id.description
-                
-                // Get the artwork URL if available
-                if let artwork = try? await song.artwork {
-                    self.artworkCache[id] = artwork.url(width: 300, height: 300)
-                }
-                
-                return MusicItem(
-                    id: id,
-                    title: song.title,
-                    artist: song.artistName,
-                    albumName: song.albumTitle ?? "",
-                    artworkID: id,
-                    type: .song
-                )
-            }
-        }
-        
-        await searchRequestTask?.value
+        await search(query: query, type: MusicKit.Song.self)
     }
     
     func searchAlbums(query: String) async {
-        guard !query.isEmpty else {
-            self.searchResults = []
-            return
-        }
-        
-        searchRequestTask?.cancel()
-        self.isSearching = true
-        self.errorMessage = nil
-        
-        searchRequestTask = Task {
-            await performSearch(type: MusicKit.Album.self, query: query) { album in
-                let album = album as! MusicKit.Album
-                let id = album.id.description
-                
-                // Get the artwork URL if available
-                if let artwork = try? await album.artwork {
-                    self.artworkCache[id] = artwork.url(width: 300, height: 300)
-                }
-                
-                return MusicItem(
-                    id: id,
-                    title: album.title,
-                    artist: album.artistName,
-                    albumName: album.title,
-                    artworkID: id,
-                    type: .album
-                )
-            }
-        }
-        
-        await searchRequestTask?.value
+        await search(query: query, type: MusicKit.Album.self)
     }
     
     func searchArtists(query: String) async {
-        guard !query.isEmpty else {
+        await search(query: query, type: MusicKit.Artist.self)
+    }
+    
+    private func search<T: MusicCatalogSearchable>(query: String, type: T.Type) async {
+        // Cancel any active search
+        activeTask?.cancel()
+        
+        // Handle empty query
+        if query.isEmpty {
             self.searchResults = []
+            self.isSearching = false
+            self.errorMessage = nil
             return
         }
         
-        searchRequestTask?.cancel()
+        // Set searching state
         self.isSearching = true
         self.errorMessage = nil
         
-        searchRequestTask = Task {
-            await performSearch(type: MusicKit.Artist.self, query: query) { artist in
-                let artist = artist as! MusicKit.Artist
-                let id = artist.id.description
+        // Create and store the task
+        let task = Task {
+            do {
+                logger.debug("Searching for '\(query)' with type \(String(describing: type))")
                 
-                // Try to get artwork from artist's top album
-                if self.artworkCache[id] == nil {
-                    var albumRequest = MusicCatalogSearchRequest(term: artist.name, types: [MusicKit.Album.self])
-                    albumRequest.limit = 1
-                    if let albumResponse = try? await albumRequest.response(),
-                       let album = albumResponse.albums.first,
-                       let artwork = try? await album.artwork {
-                        self.artworkCache[id] = artwork.url(width: 300, height: 300)
+                // Create search request
+                var request = MusicCatalogSearchRequest(term: query, types: [type])
+                request.limit = 25
+                
+                // Get response
+                let response = try await request.response()
+                
+                // Check if cancelled
+                if Task.isCancelled {
+                    logger.debug("Search cancelled after response")
+                    return
+                }
+                
+                // Process results
+                var items: [MusicItem] = []
+                
+                if type == MusicKit.Song.self {
+                    for song in response.songs {
+                        if Task.isCancelled { return }
+                        
+                        let id = song.id.description
+                        
+                        // Get artwork
+                        if let artwork = song.artwork {
+                            self.artworkCache[id] = artwork.url(width: 300, height: 300)
+                        }
+                        
+                        items.append(MusicItem(
+                            id: id,
+                            title: song.title,
+                            artist: song.artistName,
+                            albumName: song.albumTitle ?? "",
+                            artworkID: id,
+                            type: .song
+                        ))
+                    }
+                } else if type == MusicKit.Album.self {
+                    for album in response.albums {
+                        if Task.isCancelled { return }
+                        
+                        let id = album.id.description
+                        
+                        // Get artwork
+                        if let artwork = album.artwork {
+                            self.artworkCache[id] = artwork.url(width: 300, height: 300)
+                        }
+                        
+                        items.append(MusicItem(
+                            id: id,
+                            title: album.title,
+                            artist: album.artistName,
+                            albumName: album.title,
+                            artworkID: id,
+                            type: .album
+                        ))
+                    }
+                } else if type == MusicKit.Artist.self {
+                    for artist in response.artists {
+                        if Task.isCancelled { return }
+                        
+                        let id = artist.id.description
+                        
+                        // Try to get artwork from artist's top album
+                        if self.artworkCache[id] == nil {
+                            var albumRequest = MusicCatalogSearchRequest(term: artist.name, types: [MusicKit.Album.self])
+                            albumRequest.limit = 1
+                            if let albumResponse = try? await albumRequest.response(),
+                               let album = albumResponse.albums.first,
+                               let artwork = album.artwork {
+                                self.artworkCache[id] = artwork.url(width: 300, height: 300)
+                            }
+                        }
+                        
+                        items.append(MusicItem(
+                            id: id,
+                            title: artist.name,
+                            artist: artist.name,
+                            albumName: "",
+                            artworkID: id,
+                            type: .artist
+                        ))
                     }
                 }
                 
-                return MusicItem(
-                    id: id,
-                    title: artist.name,
-                    artist: artist.name,
-                    albumName: "",
-                    artworkID: id,
-                    type: .artist
-                )
+                // Only update state if not cancelled
+                if !Task.isCancelled {
+                    logger.debug("Search completed: found \(items.count) results")
+                    await MainActor.run {
+                        self.searchResults = items
+                        self.isSearching = false
+                    }
+                }
+                
+            } catch {
+                if !Task.isCancelled {
+                    logger.error("Search error: \(error.localizedDescription)")
+                    await MainActor.run {
+                        self.errorMessage = "Search failed: \(error.localizedDescription)"
+                        self.isSearching = false
+                    }
+                }
             }
         }
         
-        await searchRequestTask?.value
+        // Store the task
+        activeTask = task
+        
+        // Wait for task to complete
+        await task.value
     }
     
     func getArtworkURL(for id: String) -> URL? {

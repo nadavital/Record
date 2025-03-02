@@ -60,7 +60,7 @@ struct MusicItemTileView: View {
 #Preview {
     let mockMusicAPI = MusicAPIManager()
     
-    return MusicItemTileView(
+    MusicItemTileView(
         title: "Album Title",
         artist: "Artist Name",
         albumName: "Album Name",
@@ -69,5 +69,5 @@ struct MusicItemTileView: View {
         musicAPI: mockMusicAPI
     )
     .padding()
-    .previewLayout(.sizeThatFits)
+    .sizeThatFits
 }

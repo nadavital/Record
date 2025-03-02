@@ -317,7 +317,7 @@ struct ProfileView: View {
                 // Delete button (only when editing)
                 if isEditingAlbums {
                     Button {
-                        if let index = profileManager.pinnedAlbums.firstIndex(where: { $0.id == album.id }) {
+                        if profileManager.pinnedAlbums.firstIndex(where: { $0.id == album.id }) != nil {
                             withAnimation {
                                 profileManager.removePinnedAlbum(album) // Use manager method for persistence
                             }

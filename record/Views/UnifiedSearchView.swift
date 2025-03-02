@@ -23,97 +23,17 @@ enum SearchType {
     }
 }
 
-struct SearchResultsView: View {
-    @EnvironmentObject var profileManager: UserProfileManager
-    @EnvironmentObject var rankingManager: MusicRankingManager
-    let musicAPI: MusicAPIManager
-    let searchType: SearchType
-    let searchText: String
-    let presentationMode: Binding<PresentationMode>
-    
-    var body: some View {
-        ZStack {
-            if musicAPI.isSearching {
-                ProgressView()
-                    .scaleEffect(1.2)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if let errorMessage = musicAPI.errorMessage {
-                VStack(spacing: 15) {
-                    Text(errorMessage)
-                        .foregroundColor(Color(.secondaryLabel))
-                        .multilineTextAlignment(.center)
-                    
-                    Button(action: {
-                        Task {
-                            switch searchType {
-                            case .song:
-                                await musicAPI.searchMusic(query: searchText)
-                            case .album:
-                                await musicAPI.searchAlbums(query: searchText)
-                            case .artist:
-                                await musicAPI.searchArtists(query: searchText)
-                            }
-                        }
-                    }) {
-                        Text("Retry")
-                            .foregroundColor(.white)
-                            .font(.system(size: 15, weight: .medium))
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                            .background(
-                                Capsule()
-                                    .fill(Color.accentColor)
-                            )
-                    }
-                }
-            } else if musicAPI.searchResults.isEmpty && !searchText.isEmpty {
-                Text("No results found")
-                    .foregroundColor(Color(.secondaryLabel))
-            } else {
-                ScrollView {
-                    LazyVStack(spacing: 12) {
-                        ForEach(musicAPI.searchResults) { item in
-                            MusicItemTileView(
-                                title: item.title,
-                                artist: item.artist,
-                                albumName: searchType == .song ? item.albumName : nil,
-                                artworkID: item.artworkID,
-                                onSelect: {
-                                    switch searchType {
-                                    case .song:
-                                        let song = musicAPI.convertToSong(item)
-                                        rankingManager.addNewSong(song: song)
-                                    case .album:
-                                        let album = musicAPI.convertToAlbum(item)
-                                        profileManager.pinnedAlbums.append(album)
-                                    case .artist:
-                                        let artist = Artist(
-                                            name: item.artist,
-                                            artworkURL: musicAPI.getArtworkURL(for: item.artworkID)
-                                        )
-                                        profileManager.addPinnedArtist(artist)
-                                    }
-                                    presentationMode.wrappedValue.dismiss()
-                                },
-                                musicAPI: musicAPI
-                            )
-                            .padding(.horizontal)
-                        }
-                    }
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
+// Simplified search view without Combine
 struct UnifiedSearchView: View {
     @Environment(\.presentationMode) var presentationMode
     @EnvironmentObject var profileManager: UserProfileManager
     @EnvironmentObject var rankingManager: MusicRankingManager
     @StateObject private var musicAPI = MusicAPIManager()
+    
     @State private var searchText = ""
+    @State private var isSearching = false
     @State private var searchTask: Task<Void, Never>?
+    @State private var lastSearchTerm = ""
     
     let searchType: SearchType
     
@@ -136,23 +56,40 @@ struct UnifiedSearchView: View {
                     }
                     
                     VStack(spacing: 12) {
-                        SearchBarView(
-                            searchText: $searchText,
-                            placeholder: searchType.placeholder,
-                            onTextChange: performSearch,
-                            onClearText: {
-                                searchTask?.cancel()
-                                musicAPI.searchResults = []
+                        // Simple search bar
+                        HStack {
+                            Image(systemName: "magnifyingglass")
+                                .foregroundColor(.secondary)
+                                .padding(.leading, 8)
+                            
+                            TextField(searchType.placeholder, text: $searchText)
+                                .onChange(of: searchText) { newValue in
+                                    performSearch(query: newValue)
+                                }
+                                .padding(.vertical, 8)
+                            
+                            if !searchText.isEmpty {
+                                Button(action: {
+                                    searchText = ""
+                                    musicAPI.searchResults = []
+                                }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundColor(.secondary)
+                                }
+                                .padding(.trailing, 8)
                             }
-                        )
-                        .padding(.vertical, 4)
+                            
+                            if isSearching {
+                                ProgressView()
+                                    .padding(.trailing, 8)
+                            }
+                        }
+                        .background(Color(.secondarySystemBackground))
+                        .cornerRadius(10)
+                        .padding(.horizontal)
                         
-                        SearchResultsView(
-                            musicAPI: musicAPI,
-                            searchType: searchType,
-                            searchText: searchText,
-                            presentationMode: presentationMode
-                        )
+                        // Results view
+                        searchResultsView
                     }
                 }
                 .navigationTitle(searchType.title)
@@ -175,38 +112,111 @@ struct UnifiedSearchView: View {
         }
     }
     
-    private func performSearch() {
+    // Search results view
+    private var searchResultsView: some View {
+        Group {
+            if musicAPI.searchResults.isEmpty && searchText.isEmpty {
+                Text("Start typing to search")
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if musicAPI.searchResults.isEmpty && isSearching {
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if musicAPI.searchResults.isEmpty && !searchText.isEmpty && !isSearching {
+                Text("No results found")
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 12) {
+                        ForEach(musicAPI.searchResults) { item in
+                            MusicItemTileView(
+                                title: item.title,
+                                artist: item.artist,
+                                albumName: searchType == .song ? item.albumName : nil,
+                                artworkID: item.artworkID,
+                                onSelect: {
+                                    handleSelection(item)
+                                },
+                                musicAPI: musicAPI
+                            )
+                            .padding(.horizontal)
+                        }
+                    }
+                    .padding(.vertical, 8)
+                }
+            }
+        }
+    }
+    
+    private func handleSelection(_ item: MusicItem) {
+        switch searchType {
+        case .song:
+            let song = musicAPI.convertToSong(item)
+            rankingManager.addNewSong(song: song)
+        case .album:
+            let album = musicAPI.convertToAlbum(item)
+            profileManager.pinnedAlbums.append(album)
+        case .artist:
+            let artist = Artist(
+                name: item.artist,
+                artworkURL: musicAPI.getArtworkURL(for: item.artworkID)
+            )
+            profileManager.addPinnedArtist(artist)
+        }
+        presentationMode.wrappedValue.dismiss()
+    }
+    
+    // Simple debounced search with Task
+    private func performSearch(query: String) {
+        // Cancel any existing search
         searchTask?.cancel()
         
-        guard !searchText.isEmpty else {
+        // Handle empty query
+        if query.isEmpty {
+            isSearching = false
             musicAPI.searchResults = []
             return
         }
         
+        // Skip if query hasn't changed
+        if query == lastSearchTerm {
+            return
+        }
+        
+        // Update state
+        isSearching = true
+        lastSearchTerm = query
+        
+        // Start new search task
         searchTask = Task {
-            try? await Task.sleep(nanoseconds: 300_000_000) // 0.3 second debounce
+            // Add small delay for debouncing
+            try? await Task.sleep(nanoseconds: 300_000_000) // 300ms delay
             
-            guard !Task.isCancelled else { return }
+            // Exit if cancelled during delay
+            if Task.isCancelled { return }
             
+            // Print debug info
+            print("Performing search for: \(query)")
+            
+            // Perform search based on type
             switch searchType {
             case .song:
-                await musicAPI.searchMusic(query: searchText)
+                await musicAPI.searchMusic(query: query)
             case .album:
-                await musicAPI.searchAlbums(query: searchText)
+                await musicAPI.searchAlbums(query: query)
             case .artist:
-                await musicAPI.searchArtists(query: searchText)
+                await musicAPI.searchArtists(query: query)
+            }
+            
+            // Update UI state after search completes
+            await MainActor.run {
+                print("Search completed for: \(query), results: \(musicAPI.searchResults.count)")
+                // Only update if this query is still relevant
+                if query == searchText {
+                    isSearching = false
+                }
             }
         }
-    }
-}
-
-#Preview {
-    let profileManager = UserProfileManager()
-    let rankingManager = MusicRankingManager()
-    
-    return NavigationStack {
-        UnifiedSearchView(searchType: .song)
-            .environmentObject(profileManager)
-            .environmentObject(rankingManager)
     }
 }
