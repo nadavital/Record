@@ -12,7 +12,6 @@ struct ContentView: View {
     
     var body: some View {
         ZStack {
-            // Background gradient
             LinearGradient(
                 gradient: Gradient(colors: [
                     Color.black.opacity(0.8),
@@ -23,7 +22,6 @@ struct ContentView: View {
             )
             .ignoresSafeArea()
             
-            // Main content
             TabView(selection: $selectedTab) {
                 RankingView()
                     .tabItem {
@@ -32,12 +30,19 @@ struct ContentView: View {
                     }
                     .tag(0)
                 
+                StatisticsView()
+                    .tabItem {
+                        Image(systemName: "chart.bar")
+                        Text("Stats")
+                    }
+                    .tag(1)
+                
                 ProfileView()
                     .tabItem {
                         Image(systemName: "person.fill")
                         Text("Profile")
                     }
-                    .tag(1)
+                    .tag(2)
             }
             .accentColor(Color(red: 0.94, green: 0.3, blue: 0.9))
         }

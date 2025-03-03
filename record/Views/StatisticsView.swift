@@ -4,42 +4,176 @@ import MusicKit
 struct StatisticsView: View {
     @StateObject private var musicAPI = MusicAPIManager()
     @Environment(\.colorScheme) private var colorScheme
-    
-    // Filter state
-    @State private var selectedTimeRange = 0
-    private let timeRanges = ["Last Week", "Last Month", "All Time"]
+    @State private var isLoading = true
     
     // Derived statistics
-    private var recentSongs: [MusicItem] {
-        musicAPI.recentSongs
+    private var listeningHistory: [ListeningHistoryItem] {
+        musicAPI.listeningHistory
+    }
+    
+    private var totalPlays: Int {
+        listeningHistory.reduce(0) { $0 + $1.playCount }
+    }
+    
+    private var uniqueSongs: Int {
+        listeningHistory.count
+    }
+    
+    private var topSongs: [(song: ListeningHistoryItem, count: Int)] {
+        let sortedSongs = listeningHistory
+            .map { (song: $0, count: $0.playCount) }
+            .sorted { $0.count > $1.count }
+        return Array(sortedSongs.prefix(10))
     }
     
     private var topArtists: [(artist: String, count: Int)] {
-        let artistCounts = Dictionary(grouping: recentSongs, by: { $0.artist })
-            .map { (artist: $0.key, count: $0.value.count) }
-        return artistCounts.sorted { $0.count > $1.count }.prefix(5).map { $0 }
+        let artistCounts = Dictionary(grouping: listeningHistory, by: { $0.artist })
+            .map { (artist: $0.key, count: $0.value.reduce(0) { $0 + $1.playCount }) }
+            .sorted { $0.count > $1.count }
+        return Array(artistCounts.prefix(10))
     }
     
-    private var songCount: Int {
-        recentSongs.count
-    }
-    
-    // Simple mock for genre (MusicKit might not provide this directly from recent songs)
-    private var topGenres: [(genre: String, count: Int)] {
-        // This is a placeholder; you'd need actual genre data from MusicKit or an external API
-        let mockGenres = [
-            ("Pop", Int.random(in: 5...15)),
-            ("Rock", Int.random(in: 3...10)),
-            ("Hip Hop", Int.random(in: 2...8)),
-            ("Electronic", Int.random(in: 1...5))
-        ]
-        return mockGenres.sorted { $0.count > $1.count }
+    private var topAlbums: [(album: String, artist: String, count: Int)] {
+        let albumCounts = Dictionary(grouping: listeningHistory, by: { "\($0.albumName)||\($0.artist)" })
+            .map { key, value in
+                let components = key.components(separatedBy: "||")
+                return (
+                    album: components.first ?? "",
+                    artist: components.last ?? "",
+                    count: value.reduce(0) { $0 + $1.playCount }
+                )
+            }
+            .filter { !$0.album.isEmpty }
+            .sorted { $0.count > $1.count }
+        return Array(albumCounts.prefix(10))
     }
     
     var body: some View {
         NavigationStack {
-            ZStack {
-                // Background gradient matching ContentView
+            ScrollView {
+                VStack(spacing: 20) {
+                    // Overview Section
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Overview")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 4)
+                        HStack {
+                            Image(systemName: "music.note.list")
+                                .foregroundColor(Color(red: 0.94, green: 0.3, blue: 0.9))
+                            Text("Total Plays")
+                            Spacer()
+                            Text("\(totalPlays)")
+                                .foregroundColor(.gray)
+                        }
+                        .padding(.horizontal, 4)
+                        HStack {
+                            Image(systemName: "music.note")
+                                .foregroundColor(Color(red: 0.94, green: 0.3, blue: 0.9))
+                            Text("Unique Songs")
+                            Spacer()
+                            Text("\(uniqueSongs)")
+                                .foregroundColor(.gray)
+                        }
+                        .padding(.horizontal, 4)
+                    }
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color(.secondarySystemGroupedBackground))
+                    )
+                    .padding(.horizontal)
+                    
+                    // Top Songs Section
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Top Songs")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 4)
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 16) {
+                                if topSongs.isEmpty {
+                                    Text("No data available")
+                                        .foregroundColor(.gray)
+                                        .padding(.vertical, 16)
+                                } else {
+                                    ForEach(topSongs, id: \.song.id) { song in
+                                        songView(song: song.song, count: song.count)
+                                    }
+                                }
+                            }
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 8)
+                        }
+                    }
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color(.secondarySystemGroupedBackground))
+                    )
+                    .padding(.horizontal)
+                    
+                    // Top Artists Section
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Top Artists")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 4)
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 16) {
+                                if topArtists.isEmpty {
+                                    Text("No data available")
+                                        .foregroundColor(.gray)
+                                        .padding(.vertical, 16)
+                                } else {
+                                    ForEach(topArtists, id: \.artist) { artist in
+                                        artistView(artist: artist.artist, count: artist.count)
+                                    }
+                                }
+                            }
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 8)
+                        }
+                    }
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color(.secondarySystemGroupedBackground))
+                    )
+                    .padding(.horizontal)
+                    
+                    // Top Albums Section
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Top Albums")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 4)
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 16) {
+                                if topAlbums.isEmpty {
+                                    Text("No data available")
+                                        .foregroundColor(.gray)
+                                        .padding(.vertical, 16)
+                                } else {
+                                    ForEach(topAlbums, id: \.album) { album in
+                                        albumView(album: album.album, artist: album.artist, count: album.count)
+                                    }
+                                }
+                            }
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 8)
+                        }
+                    }
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color(.secondarySystemGroupedBackground))
+                    )
+                    .padding(.horizontal)
+                }
+                .padding(.vertical)
+            }
+            .background(
                 LinearGradient(
                     gradient: Gradient(colors: [
                         Color.black.opacity(0.8),
@@ -49,202 +183,156 @@ struct StatisticsView: View {
                     endPoint: .bottom
                 )
                 .ignoresSafeArea()
-                
-                ScrollView {
-                    VStack(spacing: 20) {
-                        // Time range filter
-                        Picker("Time Range", selection: $selectedTimeRange) {
-                            ForEach(0..<timeRanges.count, id: \.self) { index in
-                                Text(timeRanges[index]).tag(index)
-                            }
-                        }
-                        .pickerStyle(SegmentedPickerStyle())
-                        .padding(.horizontal)
-                        .background(
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill(Color(.secondarySystemBackground).opacity(0.2))
-                                .shadow(color: Color.black.opacity(0.3), radius: 5, x: 0, y: 2)
-                        )
-                        .padding(.top, 10)
-                        
-                        // Total songs played
-                        StatCardView(
-                            title: "Songs Played",
-                            value: "\(songCount)",
-                            icon: "music.note.list",
-                            color: Color(red: 0.94, green: 0.3, blue: 0.9)
-                        )
-                        
-                        // Top artists bar chart
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("Top Artists")
-                                .font(.headline)
-                                .foregroundColor(.white)
-                            
-                            if topArtists.isEmpty {
-                                Text("No data available")
-                                    .foregroundColor(.gray)
-                            } else {
-                                BarChartView(data: topArtists.map { ($0.artist, Double($0.count)) })
-                            }
-                        }
-                        .padding(.horizontal)
-                        .padding(.vertical, 10)
-                        .background(
-                            RoundedRectangle(cornerRadius: 15)
-                                .fill(Color(.systemBackground).opacity(0.1))
-                                .shadow(color: Color.black.opacity(0.3), radius: 5, x: 0, y: 2)
-                        )
-                        
-                        // Genre distribution (mock pie chart)
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("Genre Distribution")
-                                .font(.headline)
-                                .foregroundColor(.white)
-                            
-                            if topGenres.isEmpty {
-                                Text("No data available")
-                                    .foregroundColor(.gray)
-                            } else {
-                                PieChartView(data: topGenres.map { ($0.genre, Double($0.count)) })
-                            }
-                        }
-                        .padding(.horizontal)
-                        .padding(.vertical, 10)
-                        .background(
-                            RoundedRectangle(cornerRadius: 15)
-                                .fill(Color(.systemBackground).opacity(0.1))
-                                .shadow(color: Color.black.opacity(0.3), radius: 5, x: 0, y: 2)
-                        )
-                    }
-                    .padding(.bottom, 20)
-                }
-            }
+            )
             .navigationTitle("Music Insights")
             .foregroundColor(.white)
+            .overlay {
+                if isLoading {
+                    ProgressView("Loading Insights...")
+                        .foregroundColor(.white)
+                }
+            }
         }
         .task {
+            isLoading = true
             await musicAPI.checkMusicAuthorizationStatus()
-            await musicAPI.fetchRecentSongs(limit: 50) // Fetch more songs for better stats
+            await musicAPI.fetchListeningHistory()
+            isLoading = false
         }
     }
-}
-
-// Simple Stat Card Component
-struct StatCardView: View {
-    let title: String
-    let value: String
-    let icon: String
-    let color: Color
     
-    var body: some View {
-        HStack {
-            Image(systemName: icon)
-                .foregroundColor(color)
-                .font(.title2)
-            
-            VStack(alignment: .leading) {
-                Text(title)
-                    .font(.subheadline)
-                    .foregroundColor(.gray)
-                Text(value)
-                    .font(.title2)
-                    .fontWeight(.bold)
-                    .foregroundColor(.white)
-            }
-            Spacer()
-        }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 15)
-                .fill(Color(.systemBackground).opacity(0.1))
-                .shadow(color: Color.black.opacity(0.3), radius: 5, x: 0, y: 2)
-        )
-        .padding(.horizontal)
-    }
-}
-
-// Simple Bar Chart Component
-struct BarChartView: View {
-    let data: [(label: String, value: Double)]
-    
-    private var maxValue: Double {
-        data.map { $0.value }.max() ?? 1
-    }
-    
-    var body: some View {
-        VStack(spacing: 8) {
-            ForEach(data, id: \.label) { item in
-                HStack {
-                    Text(item.label)
-                        .font(.caption)
-                        .foregroundColor(.white)
-                        .frame(width: 80, alignment: .leading)
-                    
-                    Rectangle()
-                        .fill(Color(red: 0.94, green: 0.3, blue: 0.9))
-                        .frame(width: CGFloat(item.value / maxValue * 200), height: 20)
-                        .cornerRadius(5)
-                    
-                    Spacer()
-                    
-                    Text("\(Int(item.value))")
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                }
-            }
-        }
-    }
-}
-
-// Simple Pie Chart Component (mock using stacked rectangles)
-struct PieChartView: View {
-    let data: [(label: String, value: Double)]
-    
-    private var total: Double {
-        data.map { $0.value }.reduce(0, +)
-    }
-    
-    var body: some View {
-        HStack(spacing: 20) {
-            ZStack {
-                ForEach(data.indices, id: \.self) { index in
-                    Circle()
-                        .trim(from: index == 0 ? 0 : data[0..<index].map { $0.value / total }.reduce(0, +),
-                              to: data[0...index].map { $0.value / total }.reduce(0, +))
-                        .stroke(colorForIndex(index), lineWidth: 20)
-                        .frame(width: 100, height: 100)
-                }
-            }
-            
-            VStack(alignment: .leading, spacing: 8) {
-                ForEach(data.indices, id: \.self) { index in
-                    HStack {
-                        Circle()
-                            .fill(colorForIndex(index))
-                            .frame(width: 10, height: 10)
-                        Text("\(data[index].label): \(Int(data[index].value))")
-                            .font(.caption)
+    // Song view with artwork
+    private func songView(song: ListeningHistoryItem, count: Int) -> some View {
+        VStack(alignment: .center, spacing: 6) {
+            if let artworkImage = musicAPI.getArtworkImage(for: song) {
+                Image(uiImage: artworkImage)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 100, height: 100)
+                    .cornerRadius(8)
+                    .shadow(radius: 2)
+            } else {
+                Rectangle()
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(width: 100, height: 100)
+                    .cornerRadius(8)
+                    .overlay(
+                        Text(song.title.prefix(1).uppercased())
+                            .font(.system(size: 32, weight: .bold))
                             .foregroundColor(.white)
+                    )
+                    .shadow(radius: 2)
+            }
+            Text(song.title)
+                .font(.caption)
+                .fontWeight(.medium)
+                .lineLimit(1)
+                .frame(width: 100)
+                .multilineTextAlignment(.center)
+            Text(song.artist)
+                .font(.caption2)
+                .foregroundColor(.gray)
+                .lineLimit(1)
+                .frame(width: 100)
+                .multilineTextAlignment(.center)
+            Text("\(count) plays")
+                .font(.caption2)
+                .foregroundColor(.gray)
+        }
+    }
+    
+    // Artist view with placeholder
+    private func artistView(artist: String, count: Int) -> some View {
+        VStack(alignment: .center, spacing: 6) {
+            if let artworkURL = musicAPI.getArtworkURL(for: artist) {
+                AsyncImage(url: artworkURL) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 85, height: 85)
+                            .clipShape(Circle())
+                            .shadow(radius: 2)
+                    case .failure(_), .empty:
+                        Circle()
+                            .fill(Color.gray.opacity(0.3))
+                            .frame(width: 85, height: 85)
+                            .overlay(
+                                Text(artist.prefix(1).uppercased())
+                                    .font(.system(size: 32, weight: .bold))
+                                    .foregroundColor(.white)
+                            )
+                            .shadow(radius: 2)
+                    @unknown default:
+                        EmptyView()
                     }
                 }
+            } else {
+                Circle()
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(width: 85, height: 85)
+                    .overlay(
+                        Text(artist.prefix(1).uppercased())
+                            .font(.system(size: 32, weight: .bold))
+                            .foregroundColor(.white)
+                    )
+                    .shadow(radius: 2)
             }
+            Text(artist)
+                .font(.caption)
+                .fontWeight(.medium)
+                .lineLimit(1)
+                .frame(width: 85)
+                .multilineTextAlignment(.center)
+            Text("\(count) plays")
+                .font(.caption2)
+                .foregroundColor(.gray)
         }
     }
     
-    private func colorForIndex(_ index: Int) -> Color {
-        switch index {
-        case 0: return Color(red: 0.94, green: 0.3, blue: 0.9)
-        case 1: return .blue
-        case 2: return .green
-        case 3: return .red
-        default: return .gray
+    // Album view with artwork
+    private func albumView(album: String, artist: String, count: Int) -> some View {
+        VStack(alignment: .center, spacing: 6) {
+            if let firstSong = listeningHistory.first(where: { $0.albumName == album && $0.artist == artist }),
+               let artworkImage = musicAPI.getArtworkImage(for: firstSong) {
+                Image(uiImage: artworkImage)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 100, height: 100)
+                    .cornerRadius(8)
+                    .shadow(radius: 2)
+            } else {
+                Rectangle()
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(width: 100, height: 100)
+                    .cornerRadius(8)
+                    .overlay(
+                        Text(album.prefix(1).uppercased())
+                            .font(.system(size: 32, weight: .bold))
+                            .foregroundColor(.white)
+                    )
+                    .shadow(radius: 2)
+            }
+            Text(album)
+                .font(.caption)
+                .fontWeight(.medium)
+                .lineLimit(1)
+                .frame(width: 100)
+                .multilineTextAlignment(.center)
+            Text(artist)
+                .font(.caption2)
+                .foregroundColor(.gray)
+                .lineLimit(1)
+                .frame(width: 100)
+                .multilineTextAlignment(.center)
+            Text("\(count) plays")
+                .font(.caption2)
+                .foregroundColor(.gray)
         }
     }
 }
 
 #Preview("Statistics View") {
     StatisticsView()
-        .environmentObject(UserProfileManager())
-        .environmentObject(MusicRankingManager())
 }

@@ -1,6 +1,7 @@
 import Foundation
 import MusicKit
 import SwiftUI
+import MediaPlayer
 import os.log
 
 @MainActor
@@ -12,6 +13,7 @@ class MusicAPIManager: ObservableObject {
     @Published var recentSongs: [MusicItem] = []
     @Published var recentAlbums: [MusicItem] = []
     @Published var recentArtists: [MusicItem] = []
+    @Published var listeningHistory: [ListeningHistoryItem] = []
     
     private var artworkCache: [String: URL] = [:]
     private var activeTask: Task<Void, Never>?
@@ -52,6 +54,12 @@ class MusicAPIManager: ObservableObject {
         if self.authorizationStatus != .authorized {
             self.authorizationStatus = await MusicAuthorization.request()
         }
+        let mediaAuthStatus = MPMediaLibrary.authorizationStatus()
+        if mediaAuthStatus != .authorized {
+            MPMediaLibrary.requestAuthorization { status in
+                Task { await self.checkMusicAuthorizationStatus() }
+            }
+        }
     }
     
     func searchMusic(query: String) async {
@@ -84,7 +92,7 @@ class MusicAPIManager: ObservableObject {
                 logger.debug("Searching for '\(query)' with type \(String(describing: type))")
                 
                 var request = MusicCatalogSearchRequest(term: query, types: [type])
-                request.limit = 25 // Now mutable with 'var'
+                request.limit = 25
                 
                 let response = try await request.response()
                 
@@ -193,7 +201,7 @@ class MusicAPIManager: ObservableObject {
             let response = try await request.response()
             
             var songs: [MusicItem] = []
-            var albums: [String: MusicItem] = [:] // Use dictionary to avoid duplicates
+            var albums: [String: MusicItem] = [:]
             var artists: [String: MusicItem] = [:]
             
             for song in response.items {
@@ -202,7 +210,6 @@ class MusicAPIManager: ObservableObject {
                     self.artworkCache[id] = artwork.url(width: 300, height: 300)
                 }
                 
-                // Add song
                 let songItem = MusicItem(
                     id: id,
                     title: song.title,
@@ -213,31 +220,29 @@ class MusicAPIManager: ObservableObject {
                 )
                 songs.append(songItem)
                 
-                // Derive album (use album title and artist as a unique key)
                 if let albumTitle = song.albumTitle, !albumTitle.isEmpty {
                     let albumKey = "\(albumTitle.lowercased())-\(song.artistName.lowercased())"
                     if albums[albumKey] == nil {
                         let albumItem = MusicItem(
-                            id: UUID().uuidString, // No native ID, so generate one
+                            id: UUID().uuidString,
                             title: albumTitle,
                             artist: song.artistName,
                             albumName: albumTitle,
-                            artworkID: id, // Use song artwork
+                            artworkID: id,
                             type: .album
                         )
                         albums[albumKey] = albumItem
                     }
                 }
                 
-                // Derive artist
                 let artistKey = song.artistName.lowercased()
                 if artists[artistKey] == nil {
                     let artistItem = MusicItem(
-                        id: UUID().uuidString, // No native ID
+                        id: UUID().uuidString,
                         title: song.artistName,
                         artist: song.artistName,
                         albumName: "",
-                        artworkID: id, // Use song artwork
+                        artworkID: id,
                         type: .artist
                     )
                     artists[artistKey] = artistItem
@@ -246,7 +251,7 @@ class MusicAPIManager: ObservableObject {
             
             await MainActor.run {
                 self.recentSongs = songs
-                self.recentAlbums = Array(albums.values.prefix(limit)) // Limit to requested number
+                self.recentAlbums = Array(albums.values.prefix(limit))
                 self.recentArtists = Array(artists.values.prefix(limit))
                 logger.debug("Fetched \(songs.count) songs, \(self.recentAlbums.count) albums, \(self.recentArtists.count) artists")
             }
@@ -259,8 +264,84 @@ class MusicAPIManager: ObservableObject {
         }
     }
     
-    // Remove standalone fetchRecentAlbums and fetchRecentArtists since they're derived from songs
-    // If you need true recent albums/artists in the future, we'd need a different MusicKit approach
+    // Simplified to fetch all-time stats only
+    func fetchListeningHistory() async {
+        guard MPMediaLibrary.authorizationStatus() == .authorized else {
+            logger.debug("Cannot fetch listening history - MPMediaLibrary not authorized")
+            await MainActor.run {
+                self.errorMessage = "Please grant access to your music library in Settings."
+            }
+            return
+        }
+        
+        do {
+            logger.debug("Fetching all-time listening history")
+            
+            let query = MPMediaQuery.songs()
+            guard let items = query.items else {
+                logger.debug("No items found in media library")
+                return
+            }
+            
+            let historyItems = items
+                .filter { $0.playCount > 0 }
+                .map { item in
+                    ListeningHistoryItem(
+                        id: item.persistentID.description,
+                        title: item.title ?? "Unknown",
+                        artist: item.artist ?? "Unknown",
+                        albumName: item.albumTitle ?? "",
+                        artworkID: item.persistentID.description,
+                        lastPlayedDate: item.lastPlayedDate,
+                        playCount: item.playCount
+                    )
+                }
+                .sorted { ($0.lastPlayedDate ?? Date.distantPast) > ($1.lastPlayedDate ?? Date.distantPast) }
+            
+            // Calculate top artists first
+            let topArtists = Dictionary(grouping: historyItems, by: { $0.artist })
+                .map { (artist: $0.key, count: $0.value.reduce(0) { $0 + $1.playCount }) }
+                .sorted { $0.count > $1.count }
+                .prefix(10)
+                .map { $0.artist }
+            
+            // Fetch artwork only for top artists
+            var artistArtworkTasks: [String: Task<Void, Never>] = [:]
+            for artist in topArtists where artworkCache[artist] == nil {
+                artistArtworkTasks[artist] = Task {
+                    do {
+                        var request = MusicCatalogSearchRequest(term: artist, types: [MusicKit.Artist.self])
+                        request.limit = 1
+                        let response = try await request.response()
+                        if let artistItem = response.artists.first,
+                           let artwork = artistItem.artwork {
+                            await MainActor.run {
+                                self.artworkCache[artist] = artwork.url(width: 100, height: 100)
+                            }
+                        }
+                    } catch {
+                        logger.error("Failed to fetch artwork for \(artist): \(error.localizedDescription)")
+                    }
+                }
+            }
+            
+            // Wait for tasks to complete
+            for task in artistArtworkTasks.values {
+                await task.value
+            }
+            
+            await MainActor.run {
+                self.listeningHistory = historyItems
+                logger.debug("Updated listening history with \(historyItems.count) items")
+            }
+            
+        } catch {
+            logger.error("Failed to fetch listening history: \(error.localizedDescription)")
+            await MainActor.run {
+                self.errorMessage = "Failed to load listening history: \(error.localizedDescription)"
+            }
+        }
+    }
     
     func getArtworkURL(for id: String) -> URL? {
         return artworkCache[id]
@@ -285,6 +366,20 @@ class MusicAPIManager: ObservableObject {
             artworkURL: artworkCache[item.artworkID]
         )
     }
+    
+    func getArtworkImage(for item: ListeningHistoryItem) -> UIImage? {
+        let query = MPMediaQuery.songs()
+        let predicate = MPMediaPropertyPredicate(
+            value: item.id,
+            forProperty: MPMediaItemPropertyPersistentID
+        )
+        query.addFilterPredicate(predicate)
+        if let mediaItem = query.items?.first,
+           let artwork = mediaItem.artwork {
+            return artwork.image(at: CGSize(width: 100, height: 100))
+        }
+        return nil
+    }
 }
 
 struct MusicItem: Identifiable {
@@ -300,4 +395,14 @@ struct MusicItem: Identifiable {
         case album
         case artist
     }
+}
+
+struct ListeningHistoryItem: Identifiable {
+    let id: String
+    let title: String
+    let artist: String
+    let albumName: String
+    let artworkID: String
+    let lastPlayedDate: Date?
+    let playCount: Int // Represents total lifetime plays
 }

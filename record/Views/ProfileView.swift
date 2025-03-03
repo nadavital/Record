@@ -325,67 +325,15 @@ struct ProfileView: View {
     
     // Artist view for displaying favorite artists
     private func artistView(artist: Artist) -> some View {
-        VStack(alignment: .center, spacing: 6) {
-            // Artist image - use the artwork if available or a placeholder
-            ZStack(alignment: .topTrailing) {
-                if let imageURL = artist.artworkURL {
-                    RemoteArtworkView(
-                        artworkURL: imageURL,
-                        placeholderText: artist.name,
-                        cornerRadius: 50, // Make it circular
-                        size: CGSize(width: 85, height: 85)
-                    )
-                    .clipShape(Circle())
-                    .shadow(radius: 2)
-                } else {
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                gradient: Gradient(colors: [
-                                    profileManager.accentColor.opacity(0.7),
-                                    profileManager.accentColor.opacity(0.3)
-                                ]),
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: 85, height: 85)
-                        .overlay(
-                            Text(artist.name.prefix(1).uppercased())
-                                .font(.system(size: 32, weight: .bold))
-                                .foregroundColor(.white)
-                        )
-                        .shadow(radius: 2)
-                }
-                
-                // Delete button when editing
-                if isEditingArtists {
-                    Button {
-                        withAnimation {
-                            profileManager.removePinnedArtist(artist)
-                        }
-                    } label: {
-                        Image(systemName: "minus.circle.fill")
-                            .font(.system(size: 22))
-                            .foregroundColor(.red)
-                            .background(
-                                Circle()
-                                    .fill(Color.white)
-                                    .frame(width: 16, height: 16)
-                            )
-                    }
-                    .offset(x: 6, y: -6)
-                }
+        ArtistTileView(
+            artist: artist,
+            size: 85,
+            showDeleteButton: isEditingArtists,
+            accentColor: profileManager.accentColor,
+            onDelete: { artist in
+                profileManager.removePinnedArtist(artist)
             }
-            
-            // Artist name
-            Text(artist.name)
-                .font(.caption)
-                .fontWeight(.medium)
-                .lineLimit(1)
-                .frame(width: 85)
-                .multilineTextAlignment(.center)
-        }
+        )
     }
     
     // Add album button
