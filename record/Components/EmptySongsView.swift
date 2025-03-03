@@ -19,7 +19,7 @@ struct EmptySongsView: View {
                 Text("Add Song")
             }
             .buttonStyle(.borderedProminent)
-            .tint(.pink)
+            .tint(.accentColor)
         }
         .frame(maxWidth: .infinity)
         .listRowBackground(Color.clear)
