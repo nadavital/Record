@@ -180,21 +180,57 @@ struct RemoteArtworkView: View {
     }
 }
 
-// Circle variant for album artwork
-struct CircleRemoteArtworkView: View {
-    let artworkURL: URL?
-    let placeholderText: String
-    var size: CGFloat = 100
-    var glassmorphic: Bool = true
-    
-    var body: some View {
-        RemoteArtworkView(
-            artworkURL: artworkURL,
-            placeholderText: placeholderText,
-            cornerRadius: max(1, size/2),
-            size: CGSize(width: max(1, size), height: max(1, size)),
-            glassmorphic: glassmorphic
-        )
-        .clipShape(Circle())
+// Preview Provider
+struct RemoteArtworkView_Previews: PreviewProvider {
+    static var previews: some View {
+        VStack(spacing: 20) {
+            // Regular size with image URL
+            RemoteArtworkView(
+                artworkURL: URL(string: "https://example.com/artwork.jpg"),
+                placeholderText: "Album"
+            )
+            
+            // Large size with placeholder
+            RemoteArtworkView(
+                artworkURL: nil,
+                placeholderText: "Artist",
+                size: CGSize(width: 100, height: 100)
+            )
+            
+            // Small size without glassmorphic effect
+            RemoteArtworkView(
+                artworkURL: nil,
+                placeholderText: "Song",
+                size: CGSize(width: 30, height: 30),
+                glassmorphic: false
+            )
+            
+            // Custom corner radius
+            RemoteArtworkView(
+                artworkURL: nil,
+                placeholderText: "Playlist",
+                cornerRadius: 16
+            )
+        }
+        .padding()
+        .previewLayout(.sizeThatFits)
+        .preferredColorScheme(.light)
+        
+        // Dark mode preview
+        VStack(spacing: 20) {
+            RemoteArtworkView(
+                artworkURL: nil,
+                placeholderText: "Album"
+            )
+            
+            RemoteArtworkView(
+                artworkURL: nil,
+                placeholderText: "Artist",
+                size: CGSize(width: 100, height: 100)
+            )
+        }
+        .padding()
+        .previewLayout(.sizeThatFits)
+        .preferredColorScheme(.dark)
     }
 }
