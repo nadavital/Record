@@ -14,10 +14,10 @@ struct MusicAuthBannerView: View {
     
     var body: some View {
         VStack(spacing: 12) {
-            Text("Music API Access Required")
+            Text("Apple Music Access Required")
                 .font(.headline)
             
-            Text("This app requires access to the Apple Music catalog to search for albums.")
+            Text("Allow Record access to Apple Music to search for songs, albums, and artists.")
                 .font(.caption)
                 .foregroundColor(Color(.secondaryLabel))
                 .multilineTextAlignment(.center)
