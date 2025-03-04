@@ -293,19 +293,20 @@ class MusicAPIManager: ObservableObject {
                         albumName: item.albumTitle ?? "",
                         artworkID: item.persistentID.description,
                         lastPlayedDate: item.lastPlayedDate,
-                        playCount: item.playCount
+                        playCount: item.playCount,
+                        mediaItem: item // Store the MPMediaItem
                     )
                 }
                 .sorted { ($0.lastPlayedDate ?? Date.distantPast) > ($1.lastPlayedDate ?? Date.distantPast) }
             
-            // Calculate top artists first
+            // Calculate top artists first (unchanged)...
             let topArtists = Dictionary(grouping: historyItems, by: { $0.artist })
                 .map { (artist: $0.key, count: $0.value.reduce(0) { $0 + $1.playCount }) }
                 .sorted { $0.count > $1.count }
                 .prefix(10)
                 .map { $0.artist }
             
-            // Fetch artwork only for top artists
+            // Fetch artwork for top artists (unchanged)...
             var artistArtworkTasks: [String: Task<Void, Never>] = [:]
             for artist in topArtists where artworkCache[artist] == nil {
                 artistArtworkTasks[artist] = Task {
@@ -325,7 +326,6 @@ class MusicAPIManager: ObservableObject {
                 }
             }
             
-            // Wait for tasks to complete
             for task in artistArtworkTasks.values {
                 await task.value
             }
@@ -334,7 +334,6 @@ class MusicAPIManager: ObservableObject {
                 self.listeningHistory = historyItems
                 logger.debug("Updated listening history with \(historyItems.count) items")
             }
-            
         } catch {
             logger.error("Failed to fetch listening history: \(error.localizedDescription)")
             await MainActor.run {
@@ -404,5 +403,6 @@ struct ListeningHistoryItem: Identifiable {
     let albumName: String
     let artworkID: String
     let lastPlayedDate: Date?
-    let playCount: Int // Represents total lifetime plays
+    let playCount: Int
+    let mediaItem: MPMediaItem // Added to store the full MPMediaItem
 }

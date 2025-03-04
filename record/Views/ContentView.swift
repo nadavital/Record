@@ -9,7 +9,8 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var selectedTab = 0
-    @StateObject private var statsLoader = MusicAPIManager()
+    @EnvironmentObject private var musicAPI: MusicAPIManager
+    @EnvironmentObject private var rankingManager: MusicRankingManager
     @State private var statsLoadedInitially = false
     
     var body: some View {
@@ -33,7 +34,6 @@ struct ContentView: View {
                     .tag(0)
                 
                 StatisticsView()
-                    .environmentObject(statsLoader)
                     .tabItem {
                         Image(systemName: "chart.bar")
                         Text("Stats")
@@ -48,13 +48,38 @@ struct ContentView: View {
                     .tag(2)
             }
             .accentColor(Color(red: 0.94, green: 0.3, blue: 0.9))
+            
+            // Ranking overlays
+            if rankingManager.showSentimentPicker {
+                Color(.systemBackground)
+                    .opacity(0.95)
+                    .ignoresSafeArea()
+                    .zIndex(1)
+                SentimentPickerView()
+                    .transition(.opacity)
+                    .zIndex(2)
+            }
+            if rankingManager.showComparison {
+                Color(.systemBackground)
+                    .opacity(0.95)
+                    .ignoresSafeArea()
+                    .zIndex(1)
+                SongComparisonView()
+                    .transition(.opacity)
+                    .zIndex(3)
+            }
         }
         .task {
             if !statsLoadedInitially {
-                // Check authorization and load statistics in background
-                await statsLoader.checkMusicAuthorizationStatus()
-                await statsLoader.fetchListeningHistory()
+                await musicAPI.checkMusicAuthorizationStatus()
+                await musicAPI.fetchListeningHistory()
                 statsLoadedInitially = true
+            }
+        }
+        .onChange(of: rankingManager.isRanking) { isRanking in
+            // If ranking ends while on Stats tab, switch back to Stats if needed
+            if !isRanking && selectedTab == 1 {
+                // No explicit dismissal needed here; rely on NavigationStack
             }
         }
     }
@@ -64,4 +89,5 @@ struct ContentView: View {
     ContentView()
         .environmentObject(UserProfileManager())
         .environmentObject(MusicRankingManager())
+        .environmentObject(MusicAPIManager())
 }
