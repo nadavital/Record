@@ -372,8 +372,16 @@ struct ProfileView: View {
 }
 
 #Preview {
-    ProfileView()
+    let rankingManager = MusicRankingManager()
+    rankingManager.rankedSongs = [
+        Song(id: UUID(), title: "Bohemian Rhapsody", artist: "Queen", albumArt: "A Night at the Opera", sentiment: .love, score: 9.5),
+        Song(id: UUID(), title: "Hotel California", artist: "Eagles", albumArt: "Hotel California", sentiment: .love, score: 8.5),
+        Song(id: UUID(), title: "Sweet Child O' Mine", artist: "Guns N' Roses", albumArt: "Appetite for Destruction", sentiment: .fine, score: 7.0)
+    ]
+    
+    return ProfileView()
         .environmentObject(UserProfileManager())
-        .environmentObject(MusicRankingManager())
+        .environmentObject(rankingManager)
+        .environmentObject(MusicAPIManager())
         .environmentObject(AuthManager.shared)
 }
