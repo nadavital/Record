@@ -9,6 +9,8 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var selectedTab = 0
+    @StateObject private var statsLoader = MusicAPIManager()
+    @State private var statsLoadedInitially = false
     
     var body: some View {
         ZStack {
@@ -31,6 +33,7 @@ struct ContentView: View {
                     .tag(0)
                 
                 StatisticsView()
+                    .environmentObject(statsLoader)
                     .tabItem {
                         Image(systemName: "chart.bar")
                         Text("Stats")
@@ -45,6 +48,14 @@ struct ContentView: View {
                     .tag(2)
             }
             .accentColor(Color(red: 0.94, green: 0.3, blue: 0.9))
+        }
+        .task {
+            if !statsLoadedInitially {
+                // Check authorization and load statistics in background
+                await statsLoader.checkMusicAuthorizationStatus()
+                await statsLoader.fetchListeningHistory()
+                statsLoadedInitially = true
+            }
         }
     }
 }
