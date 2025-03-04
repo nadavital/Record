@@ -28,6 +28,10 @@ struct EmptySongsView: View {
     }
 }
 
-#Preview {
+#Preview("Not Searching") {
     EmptySongsView(searchText: "", onAddSong: {})
+}
+
+#Preview("Searching") {
+    EmptySongsView(searchText: "Search", onAddSong: {})
 }

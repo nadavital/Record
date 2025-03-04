@@ -88,7 +88,7 @@ struct MusicItemTileView: View {
     
     VStack(spacing: 20) {
         MusicItemTileView(
-            title: "Album Title",
+            title: "Song Title",
             artist: "Artist Name",
             albumName: "Album Name",
             artworkID: "1234",
