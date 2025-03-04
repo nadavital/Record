@@ -23,52 +23,7 @@ struct SongInfoView: View {
                 if viewModel.isLoading {
                     ProgressView()
                 } else if let song = viewModel.unifiedSong {
-                    ScrollView {
-                        VStack(spacing: 20) {
-                            if let url = song.artworkURL {
-                                AsyncImage(url: url) { image in
-                                    image.resizable().scaledToFit()
-                                } placeholder: {
-                                    Color.gray
-                                }
-                                .frame(width: 200, height: 200)
-                                .cornerRadius(10)
-                            }
-                            VStack(spacing: 8) {
-                                Text(song.title).font(.title).bold()
-                                Text(song.artist).font(.title2).foregroundColor(.secondary)
-                                Text(song.album).font(.subheadline).foregroundColor(.secondary)
-                            }
-                            HStack(spacing: 20) {
-                                statView(label: "Plays", value: "\(song.playCount)")
-                                if song.isRanked {
-                                    statView(label: "Rank", value: "#\(song.rank ?? 0)")
-                                    statView(label: "Score", value: String(format: "%.1f", song.score ?? 0))
-                                }
-                            }
-                            if let releaseDate = song.releaseDate {
-                                metadataView(label: "Release Date", value: releaseDate, formatter: .date)
-                            }
-                            if let genre = song.genre {
-                                metadataView(label: "Genre", value: genre)
-                            }
-                            if let lastPlayed = song.lastPlayedDate {
-                                metadataView(label: "Last Played", value: lastPlayed, formatter: .dateTime)
-                            }
-                            Button(action: {
-                                reRankSong(currentSong: song)
-                            }) {
-                                Text("Re-rank Song")
-                                    .frame(maxWidth: .infinity)
-                                    .padding()
-                                    .background(Color.blue)
-                                    .foregroundColor(.white)
-                                    .cornerRadius(10)
-                            }
-                            .padding(.top)
-                        }
-                        .padding()
-                    }
+                    SongInfoContentView(song: song, onReRank: { reRankSong(currentSong: song) })
                 } else if let error = viewModel.errorMessage {
                     Text(error).foregroundColor(.red)
                 } else {
@@ -76,11 +31,7 @@ struct SongInfoView: View {
                 }
             }
             .navigationTitle("Song Info")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") { dismiss() }
-                }
-            }
+            .navigationBarTitleDisplayMode(.inline)
             .onAppear {
                 Task {
                     if let mediaItem = mediaItem {
@@ -127,25 +78,193 @@ struct SongInfoView: View {
         reRankedSong = rankedSong
         rankingManager.addNewSong(song: rankedSong)
     }
+}
+
+struct SongInfoContentView: View {
+    let song: UnifiedSong
+    let onReRank: () -> Void
     
-    private func statView(label: String, value: String) -> some View {
-        VStack {
-            Text(value).font(.headline)
-            Text(label).font(.caption).foregroundColor(.secondary)
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 20) {
+                ArtworkCard(song: song)
+                StatsCard(song: song)
+                MetadataCard(song: song)
+                
+                Button(action: onReRank) {
+                    Text(song.isRanked ? "Re-rank Song" : "Rank Song")
+                        .fontWeight(.semibold)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.accentColor)
+                        .foregroundColor(.white)
+                        .cornerRadius(12)
+                        .shadow(radius: 3)
+                }
+                .padding(.top, 5)
+            }
+            .padding(.horizontal)
+            .padding(.bottom)
+            .scrollIndicators(.hidden)
         }
+        .background(Color(uiColor: .systemBackground)
+            .opacity(0.8)
+            .ignoresSafeArea())
+    }
+}
+
+struct ArtworkCard: View {
+    let song: UnifiedSong
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            if let url = song.artworkURL {
+                AsyncImage(url: url) { image in
+                    image
+                        .resizable()
+                        .scaledToFit()
+                } placeholder: {
+                    Color.gray
+                }
+                .frame(width: 250, height: 250)
+                .cornerRadius(12)
+                .shadow(radius: 5)
+            }
+            
+            VStack(spacing: 8) {
+                Text(song.title)
+                    .font(.title2)
+                    .bold()
+                Text(song.artist)
+                    .font(.title3)
+                    .foregroundColor(.secondary)
+                Text(song.album)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+            .padding(.top, 4)
+            .padding(.bottom, 8)
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+}
+
+struct StatsCard: View {
+    let song: UnifiedSong
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            HStack(spacing: 30) {
+                if song.isRanked {
+                    StatItem(label: "Rank", value: "#\(song.rank ?? 0)")
+                    StatItem(label: "Score", value: String(format: "%.1f", song.score ?? 0))
+                    if let sentiment = song.sentiment {
+                        StatItem(label: "Sentiment") {
+                            Image(systemName: sentiment.icon)
+                                .font(.title3)
+                                .foregroundColor(sentiment.color)
+                        }
+                    }
+                } else {
+                    StatItem(label: "Rank", value: "--")
+                    StatItem(label: "Score", value: "--")
+                    StatItem(label: "Sentiment") {
+                        Image(systemName: "questionmark.circle")
+                            .font(.title3)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            .padding(.horizontal)
+            
+            Divider().padding(.horizontal)
+            
+            StatItem(label: "Plays", value: "\(song.playCount)")
+                .padding(.top, 5)
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+}
+
+struct MetadataCard: View {
+    let song: UnifiedSong
+    
+    var body: some View {
+        VStack(spacing: 14) {
+            if let releaseDate = song.releaseDate {
+                MetadataItem(label: "Release Date", value: releaseDate, formatter: .date)
+            }
+            if let genre = song.genre {
+                MetadataItem(label: "Genre", value: genre)
+            }
+            if let lastPlayed = song.lastPlayedDate {
+                MetadataItem(label: "Last Played", value: lastPlayed, formatter: .dateTime)
+            }
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+}
+
+struct StatItem<Content: View>: View {
+    let label: String
+    let content: Content
+    
+    init(label: String, value: String) where Content == Text {
+        self.label = label
+        self.content = Text(value)
+            .font(.title3)
+            .bold()
     }
     
-    private func metadataView(label: String, value: Any, formatter: Formatter? = nil) -> some View {
+    init(label: String, @ViewBuilder content: () -> Content) {
+        self.label = label
+        self.content = content()
+    }
+    
+    var body: some View {
+        VStack(spacing: 5) {
+            content
+            Text(label)
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+struct MetadataItem: View {
+    let label: String
+    let value: Any
+    let formatter: Formatter?
+    
+    init(label: String, value: Any, formatter: Formatter? = nil) {
+        self.label = label
+        self.value = value
+        self.formatter = formatter
+    }
+    
+    var body: some View {
         HStack {
-            Text(label + ":")
+            Text(label)
+                .foregroundColor(.secondary)
             Spacer()
             if let formatter = formatter, let date = value as? Date {
                 Text(formatter.string(for: date) ?? "")
+                    .foregroundColor(.primary)
             } else {
                 Text("\(value)")
+                    .foregroundColor(.primary)
             }
         }
-        .font(.subheadline)
     }
 }
 

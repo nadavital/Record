@@ -65,6 +65,7 @@ struct UnifiedSearchView: View {
                                     performSearch(query: newValue)
                                 }
                                 .padding(.vertical, 8)
+                                .accentColor(.accentColor) // Set cursor color
                             
                             if !searchText.isEmpty {
                                 Button(action: {
@@ -80,6 +81,7 @@ struct UnifiedSearchView: View {
                             if isSearching {
                                 ProgressView()
                                     .padding(.trailing, 8)
+                                    .tint(.accentColor) // Set spinner color
                             }
                         }
                         .background(Color(.secondarySystemBackground))
@@ -100,10 +102,12 @@ struct UnifiedSearchView: View {
                                 .font(.system(size: 22))
                                 .foregroundStyle(Color(.tertiaryLabel))
                         }
+                        .tint(Color.accentColor) // Ensure button uses accent color
                     }
                 }
             }
         }
+        .tint(Color.accentColor) // Set navigation tint color
         .task {
             await musicAPI.checkMusicAuthorizationStatus()
             musicAPI.setRankingManager(rankingManager)
@@ -121,37 +125,53 @@ struct UnifiedSearchView: View {
                 
                 if !recentItems.isEmpty {
                     ScrollView {
-                        LazyVStack(spacing: 12) {
-                            
-                            ForEach(recentItems) { item in
-                                let rankInfo = searchType == .song ?
-                                    musicAPI.checkIfSongIsRanked(title: item.title, artist: item.artist) : nil
-                                
-                                MusicItemTileView(
-                                    title: item.title,
-                                    artist: item.artist,
-                                    albumName: searchType == .song ? item.albumName : nil,
-                                    artworkID: item.artworkID,
-                                    onSelect: {
-                                        handleSelection(item)
-                                    },
-                                    musicAPI: musicAPI,
-                                    isAlreadyRanked: rankInfo?.isRanked ?? false,
-                                    currentRank: rankInfo?.rank ?? 0,
-                                    currentScore: rankInfo?.score ?? 0.0
-                                )
+                        VStack(alignment: .leading) {
+                            Text("Recent")
+                                .font(.headline)
+                                .foregroundColor(.secondary)
                                 .padding(.horizontal)
+                                .padding(.top, 4)
+                            
+                            LazyVStack(spacing: 12) {
+                                ForEach(recentItems) { item in
+                                    let rankInfo = searchType == .song ?
+                                        musicAPI.checkIfSongIsRanked(title: item.title, artist: item.artist) : nil
+                                    
+                                    MusicItemTileView(
+                                        title: item.title,
+                                        artist: item.artist,
+                                        albumName: searchType == .song ? item.albumName : nil,
+                                        artworkID: item.artworkID,
+                                        onSelect: {
+                                            handleSelection(item)
+                                        },
+                                        musicAPI: musicAPI,
+                                        isAlreadyRanked: rankInfo?.isRanked ?? false,
+                                        currentRank: rankInfo?.rank ?? 0,
+                                        currentScore: rankInfo?.score ?? 0.0
+                                    )
+                                    .padding(.horizontal)
+                                }
                             }
+                            .padding(.vertical, 8)
                         }
-                        .padding(.vertical, 8)
                     }
                 } else {
-                    Text("Start typing to search")
-                        .foregroundColor(.secondary)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    VStack(spacing: 12) {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 32))
+                            .foregroundColor(.accentColor.opacity(0.7))
+                            .padding(.bottom, 8)
+                        
+                        Text("Start typing to search")
+                            .font(.headline)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             } else if musicAPI.searchResults.isEmpty && isSearching {
                 ProgressView()
+                    .tint(.accentColor)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if musicAPI.searchResults.isEmpty && !searchText.isEmpty && !isSearching {
                 Text("No results found")
