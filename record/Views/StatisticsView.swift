@@ -90,7 +90,7 @@ struct StatisticsView: View {
                 NavigationLink {
                     TopSongsListView(songs: topSongs, musicAPI: musicAPI, rankingManager: rankingManager)
                 } label: {
-                    Text("See All").font(.subheadline).foregroundColor(Color(.systemBlue))
+                    Text("See All").font(.subheadline).foregroundColor(Color.accentColor)
                 }
             }
             .padding(.horizontal, 4)
@@ -129,7 +129,7 @@ struct StatisticsView: View {
                 NavigationLink {
                     TopArtistsListView(artists: topArtists)
                 } label: {
-                    Text("See All").font(.subheadline).foregroundColor(Color(.systemBlue))
+                    Text("See All").font(.subheadline).foregroundColor(Color.accentColor)
                 }
             }
             .padding(.horizontal, 4)
@@ -166,7 +166,7 @@ struct StatisticsView: View {
                 NavigationLink {
                     TopAlbumsListView(albums: topAlbums)
                 } label: {
-                    Text("See All").font(.subheadline).foregroundColor(Color(.systemBlue))
+                    Text("See All").font(.subheadline).foregroundColor(Color.accentColor)
                 }
             }
             .padding(.horizontal, 4)
