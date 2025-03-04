@@ -35,11 +35,15 @@ class SongInfoViewModel: ObservableObject {
         let artist = mediaItem.artist ?? "Unknown"
         let album = mediaItem.albumTitle ?? ""
         
-        let rankingInfo = await musicAPI.checkIfSongIsRanked(title: title, artist: artist)
+        // Check if the song is ranked
         let rankedSong = rankingManager.rankedSongs.first {
             $0.title.lowercased() == title.lowercased() &&
             $0.artist.lowercased() == artist.lowercased()
         }
+        let isRanked = rankedSong != nil
+        let rank = rankedSong.map { rankingManager.rankedSongs.firstIndex(of: $0)! + 1 }
+        let score = rankedSong?.score
+        let sentiment = rankedSong?.sentiment
         
         do {
             var request = MusicCatalogSearchRequest(term: "\(title) \(artist)", types: [MusicKit.Song.self])
@@ -55,11 +59,11 @@ class SongInfoViewModel: ObservableObject {
                         lastPlayedDate: mediaItem.lastPlayedDate,
                         releaseDate: musicKitSong.releaseDate,
                         genre: musicKitSong.genreNames.first,
-                        artworkURL: musicKitSong.artwork?.url(width: 300, height: 300),
-                        isRanked: rankingInfo?.isRanked ?? false,
-                        rank: rankingInfo?.rank ?? rankedSong.map { rankingManager.rankedSongs.firstIndex(of: $0)! + 1 },
-                        score: rankingInfo?.score ?? rankedSong?.score,
-                        sentiment: rankedSong?.sentiment
+                        artworkURL: musicKitSong.artwork?.url(width: 300, height: 300) ?? rankedSong?.artworkURL,
+                        isRanked: isRanked,
+                        rank: rank,
+                        score: score,
+                        sentiment: sentiment
                     )
                 }
             } else {
@@ -72,11 +76,11 @@ class SongInfoViewModel: ObservableObject {
                         lastPlayedDate: mediaItem.lastPlayedDate,
                         releaseDate: nil,
                         genre: nil,
-                        artworkURL: mediaItem.artwork?.image(at: CGSize(width: 300, height: 300)).flatMap { _ in URL(string: "placeholder://") },
-                        isRanked: rankingInfo?.isRanked ?? false,
-                        rank: rankingInfo?.rank ?? rankedSong.map { rankingManager.rankedSongs.firstIndex(of: $0)! + 1 },
-                        score: rankingInfo?.score ?? rankedSong?.score,
-                        sentiment: rankedSong?.sentiment
+                        artworkURL: mediaItem.artwork?.image(at: CGSize(width: 300, height: 300)).flatMap { _ in URL(string: "placeholder://") } ?? rankedSong?.artworkURL,
+                        isRanked: isRanked,
+                        rank: rank,
+                        score: score,
+                        sentiment: sentiment
                     )
                 }
             }
