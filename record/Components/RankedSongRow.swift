@@ -23,8 +23,7 @@ struct RankedSongRow: View {
                     artworkURL: song.artworkURL,
                     placeholderText: song.title,
                     cornerRadius: 6,
-                    size: CGSize(width: 40, height: 40),
-                    glassmorphic: true
+                    size: CGSize(width: 40, height: 40)
                 )
                 .padding(.trailing, 4)
                 
