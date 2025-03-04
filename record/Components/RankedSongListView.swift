@@ -14,12 +14,12 @@ struct RankedSongListView: View {
     var onAddSong: () -> Void
     
     var body: some View {
-        List {
-            if filteredSongs.isEmpty {
-                EmptySongsView(searchText: searchText, onAddSong: onAddSong)
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets())
-            } else {
+        if filteredSongs.isEmpty {
+            EmptySongsView(searchText: searchText, onAddSong: onAddSong)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets())
+        } else {
+            List{
                 ForEach(filteredSongs) { song in
                     RankedSongRow(
                         rank: (rankingManager.rankedSongs.firstIndex(where: { $0.id == song.id }) ?? -1) + 1,
@@ -35,18 +35,60 @@ struct RankedSongListView: View {
                     .listRowBackground(Color.clear)
                 }
             }
+            .listStyle(.plain)
+            .animation(.easeOut(duration: 0.2), value: filteredSongs)
         }
-        .listStyle(.plain)
-        .animation(.easeOut(duration: 0.2), value: filteredSongs)
     }
 }
 
-#Preview {
+#Preview("Three Songs") {
     let rankingManager = MusicRankingManager()
+    rankingManager.rankedSongs = [
+        Song(id: UUID(), title: "Bohemian Rhapsody", artist: "Queen", albumArt: "A Night at the Opera", sentiment: .love, score: 9.5),
+        Song(id: UUID(), title: "Hotel California", artist: "Eagles", albumArt: "Hotel California", sentiment: .love, score: 8.5),
+        Song(id: UUID(), title: "Sweet Child O' Mine", artist: "Guns N' Roses", albumArt: "Appetite for Destruction", sentiment: .fine, score: 7.0)
+    ]
+    
     return RankedSongListView(
         filteredSongs: rankingManager.rankedSongs,
         searchText: "",
         onAddSong: {}
     )
     .environmentObject(rankingManager)
+    .environmentObject(MusicAPIManager())
 }
+
+#Preview("No Songs") {
+    let rankingManager = MusicRankingManager()
+    rankingManager.rankedSongs = [
+        Song(id: UUID(), title: "Bohemian Rhapsody", artist: "Queen", albumArt: "A Night at the Opera", sentiment: .love, score: 9.5),
+        Song(id: UUID(), title: "Hotel California", artist: "Eagles", albumArt: "Hotel California", sentiment: .love, score: 8.5),
+        Song(id: UUID(), title: "Sweet Child O' Mine", artist: "Guns N' Roses", albumArt: "Appetite for Destruction", sentiment: .fine, score: 7.0)
+    ]
+    
+    return RankedSongListView(
+        filteredSongs: [],
+        searchText: "",
+        onAddSong: {}
+    )
+    .environmentObject(rankingManager)
+    .environmentObject(MusicAPIManager())
+}
+
+#Preview("Empty Search") {
+    let rankingManager = MusicRankingManager()
+    rankingManager.rankedSongs = [
+        Song(id: UUID(), title: "Bohemian Rhapsody", artist: "Queen", albumArt: "A Night at the Opera", sentiment: .love, score: 9.5),
+        Song(id: UUID(), title: "Hotel California", artist: "Eagles", albumArt: "Hotel California", sentiment: .love, score: 8.5),
+        Song(id: UUID(), title: "Sweet Child O' Mine", artist: "Guns N' Roses", albumArt: "Appetite for Destruction", sentiment: .fine, score: 7.0)
+    ]
+    
+    return RankedSongListView(
+        filteredSongs: [],
+        searchText: "Search",
+        onAddSong: {}
+    )
+    .environmentObject(rankingManager)
+    .environmentObject(MusicAPIManager())
+}
+
