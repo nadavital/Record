@@ -142,55 +142,34 @@ struct RemoteArtworkView: View {
 }
 
 // Preview Provider
-struct RemoteArtworkView_Previews: PreviewProvider {
-    static var previews: some View {
-        VStack(spacing: 20) {
-            // Regular size with image URL
-            RemoteArtworkView(
-                artworkURL: URL(string: "https://example.com/artwork.jpg"),
-                placeholderText: "Album"
-            )
-            
-            // Large size with placeholder
-            RemoteArtworkView(
-                artworkURL: nil,
-                placeholderText: "Artist",
-                size: CGSize(width: 100, height: 100)
-            )
-            
-            // Small size
-            RemoteArtworkView(
-                artworkURL: nil,
-                placeholderText: "Song",
-                size: CGSize(width: 30, height: 30)
-            )
-            
-            // Custom corner radius
-            RemoteArtworkView(
-                artworkURL: nil,
-                placeholderText: "Playlist",
-                cornerRadius: 16
-            )
-        }
-        .padding()
-        .previewLayout(.sizeThatFits)
-        .preferredColorScheme(.light)
+#Preview {
+    VStack(spacing: 20) {
+        // Regular size with image URL
+        RemoteArtworkView(
+            artworkURL: URL(string: "https://example.com/artwork.jpg"),
+            placeholderText: "Album"
+        )
         
-        // Dark mode preview
-        VStack(spacing: 20) {
-            RemoteArtworkView(
-                artworkURL: nil,
-                placeholderText: "Album"
-            )
-            
-            RemoteArtworkView(
-                artworkURL: nil,
-                placeholderText: "Artist",
-                size: CGSize(width: 100, height: 100)
-            )
-        }
-        .padding()
-        .previewLayout(.sizeThatFits)
-        .preferredColorScheme(.dark)
+        // Large size with placeholder
+        RemoteArtworkView(
+            artworkURL: nil,
+            placeholderText: "Artist",
+            size: CGSize(width: 100, height: 100)
+        )
+        
+        // Small size
+        RemoteArtworkView(
+            artworkURL: nil,
+            placeholderText: "Song",
+            size: CGSize(width: 30, height: 30)
+        )
+        
+        // Custom corner radius
+        RemoteArtworkView(
+            artworkURL: nil,
+            placeholderText: "Playlist",
+            cornerRadius: 16
+        )
     }
+    .padding()
 }
