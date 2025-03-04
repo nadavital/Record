@@ -80,7 +80,7 @@ struct UsernamePromptView: View {
                 }
                 .background(
                     RoundedRectangle(cornerRadius: 10)
-                        .fill(username.count >= 3 ? profileManager.accentColor : Color.gray)
+                        .fill(username.count >= 3 ? Color.accentColor : Color.gray)
                 )
                 .disabled(username.count < 3 || authManager.isLoading)
                 

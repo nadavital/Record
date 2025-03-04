@@ -35,7 +35,7 @@ struct SignInView: View {
                             
                             Image(systemName: "music.note.list")
                                 .font(.system(size: 40, weight: .semibold))
-                                .foregroundStyle(profileManager.accentColor)
+                                .foregroundStyle(Color.accentColor)
                         }
                         
                         VStack(spacing: 8) {
@@ -106,7 +106,7 @@ struct SignInView: View {
                                     }
                                     .frame(maxWidth: .infinity)
                                     .padding()
-                                    .background(username.count >= 3 ? profileManager.accentColor : Color.gray)
+                                    .background(username.count >= 3 ? Color.accentColor : Color.gray)
                                     .foregroundColor(.white)
                                     .clipShape(RoundedRectangle(cornerRadius: 12))
                                 }

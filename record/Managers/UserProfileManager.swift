@@ -12,7 +12,6 @@ class UserProfileManager: ObservableObject {
     @Published var username: String = ""
     @Published var bio: String = ""
     @Published var profileImage: String = "profile_image"
-    @Published var accentColor: Color = Color(red: 0.94, green: 0.3, blue: 0.9)
     @Published var pinnedSongs: [Song] = []
     @Published var pinnedAlbums: [Album] = []
     @Published var pinnedArtists: [Artist] = []
@@ -40,7 +39,6 @@ class UserProfileManager: ObservableObject {
             self.username = profile.username
             self.bio = profile.bio
             self.profileImage = profile.profileImage
-            self.accentColor = profile.accentColor
         }
         
         // Load pinned songs, albums, and artists
@@ -54,8 +52,7 @@ class UserProfileManager: ObservableObject {
         PersistenceManager.shared.saveUserProfile(
             username: username, 
             bio: bio,
-            profileImage: profileImage, 
-            accentColor: accentColor
+            profileImage: profileImage
         )
     }
     

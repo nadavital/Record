@@ -32,7 +32,8 @@ struct recordApp: App {
                     ContentView()
                         .environmentObject(userProfileManager)
                         .environmentObject(musicRankingManager)
-                        .environmentObject(musicAPIManager) // Update to use musicAPIManager
+                        .environmentObject(musicAPIManager)
+                        .environmentObject(authManager) 
                         .onAppear {
                             checkMusicAuthorization()
                             checkIfUsernameNeeded()

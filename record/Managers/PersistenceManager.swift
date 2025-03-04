@@ -89,16 +89,12 @@ class PersistenceManager {
         }
     }
     
-    func saveUserProfile(username: String, bio: String, profileImage: String, accentColor: Color) {
-        let colorComponents = UIColor(accentColor).cgColor.components ?? [0, 0, 0, 0]
+    func saveUserProfile(username: String, bio: String, profileImage: String) {
         let profile: [String: Any] = [
             "username": username,
             "bio": bio,
             "profileImage": profileImage,
-            "accentColorR": colorComponents[0],
-            "accentColorG": colorComponents[1],
-            "accentColorB": colorComponents[2],
-            "accentColorA": colorComponents[3]
+
         ]
         UserDefaults.standard.set(profile, forKey: Keys.userProfile)
         dataChangeSubject.send()

@@ -11,7 +11,6 @@ struct ArtistTileView: View {
     let artist: Artist
     var size: CGFloat = 85
     var showDeleteButton: Bool = false
-    var accentColor: Color
     var onDelete: ((Artist) -> Void)?
     
     var body: some View {
@@ -32,8 +31,8 @@ struct ArtistTileView: View {
                         .fill(
                             LinearGradient(
                                 gradient: Gradient(colors: [
-                                    accentColor.opacity(0.7),
-                                    accentColor.opacity(0.3)
+                                    Color.accentColor.opacity(0.7),
+                                    Color.accentColor.opacity(0.3)
                                 ]),
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
@@ -82,7 +81,6 @@ struct ArtistTileView: View {
 #Preview {
     ArtistTileView(
         artist: Artist(name: "Artist Name", artworkURL: nil),
-        accentColor: .pink,
         onDelete: { _ in }
     )
 }

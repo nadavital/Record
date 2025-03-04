@@ -74,7 +74,6 @@ struct ProfileView: View {
                 }
             }
         }
-        .accentColor(profileManager.accentColor)
     }
     
     // Profile header with avatar and bio
@@ -83,18 +82,8 @@ struct ProfileView: View {
             // Avatar
             ZStack {
                 Circle()
-                    .fill(
-                        LinearGradient(
-                            gradient: Gradient(colors: [
-                                profileManager.accentColor,
-                                profileManager.accentColor.opacity(0.7)
-                            ]),
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                    .fill(Color.accentColor)
                     .frame(width: 110, height: 110)
-                    .shadow(color: profileManager.accentColor.opacity(0.5), radius: 5)
                 
                 Text(profileManager.username.prefix(1).uppercased())
                     .font(.system(size: 42, weight: .bold))
@@ -136,7 +125,7 @@ struct ProfileView: View {
                 } label: {
                     Text(isEditingAlbums ? "Done" : "Edit")
                         .font(.subheadline)
-                        .foregroundColor(profileManager.accentColor)
+                        .foregroundColor(.accentColor) 
                 }
             }
             .padding(.horizontal, 4)
@@ -180,7 +169,7 @@ struct ProfileView: View {
                 } label: {
                     Text(isEditingArtists ? "Done" : "Edit")
                         .font(.subheadline)
-                        .foregroundColor(profileManager.accentColor)
+                        .foregroundColor(.accentColor)
                 }
             }
             .padding(.horizontal, 4)
@@ -202,7 +191,7 @@ struct ProfileView: View {
                             .foregroundColor(.white)
                             .padding(.horizontal, 20)
                             .padding(.vertical, 8)
-                            .background(profileManager.accentColor)
+                            .background(Color.accentColor)
                             .cornerRadius(20)
                     }
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -329,7 +318,6 @@ struct ProfileView: View {
             artist: artist,
             size: 85,
             showDeleteButton: isEditingArtists,
-            accentColor: profileManager.accentColor,
             onDelete: { artist in
                 profileManager.removePinnedArtist(artist)
             }
@@ -349,7 +337,7 @@ struct ProfileView: View {
                     
                     Image(systemName: "plus")
                         .font(.system(size: 30))
-                        .foregroundColor(profileManager.accentColor)
+                        .foregroundColor(.accentColor) 
                 }
                 
                 Text("Add Album")
@@ -372,7 +360,7 @@ struct ProfileView: View {
                     
                     Image(systemName: "plus")
                         .font(.system(size: 30))
-                        .foregroundColor(profileManager.accentColor)
+                        .foregroundColor(.accentColor) 
                 }
                 
                 Text("Add Artist")

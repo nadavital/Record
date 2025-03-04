@@ -16,20 +16,10 @@ struct SettingsView: View {
     @State private var showUsernamePrompt = false
     @State private var editingUsername = false
     @State private var newUsername = ""
-    // Bio editing state
     @State private var editingBio = false
     @State private var tempBio = ""
-    @State private var showSaveSuccess = false // Add feedback for successful saves
+    @State private var showSaveSuccess = false
 
-    // Theme color options matching the app's design
-    private let colorOptions = [
-        Color(red: 0.94, green: 0.3, blue: 0.9),   // Pink
-        Color(red: 0.3, green: 0.85, blue: 0.9),   // Cyan
-        Color(red: 0.9, green: 0.4, blue: 0.4),    // Coral
-        Color(red: 0.5, green: 0.9, blue: 0.3),    // Lime
-        Color(red: 0.9, green: 0.7, blue: 0.2)     // Gold
-    ]
-    
     var body: some View {
         NavigationStack {
             List {
@@ -130,33 +120,6 @@ struct SettingsView: View {
                     Text("Customize how others see you on Record")
                 }
                 
-                // Appearance section
-                Section {
-                    HStack {
-                        Text("Theme Color")
-                        Spacer()
-                        ForEach(colorOptions, id: \.self) { color in
-                            Circle()
-                                .fill(color)
-                                .frame(width: 28, height: 28)
-                                .overlay(
-                                    Circle()
-                                        .stroke(Color.primary, lineWidth: profileManager.accentColor == color ? 2 : 0)
-                                )
-                                .onTapGesture {
-                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                                        profileManager.accentColor = color
-                                    }
-                                }
-                        }
-                    }
-                    .padding(.vertical, 4)
-                } header: {
-                    Text("Appearance")
-                } footer: {
-                    Text("Pick a color that matches your style")
-                }
-
                 // Account section
                 Section(header: Text("Account")) {
                     Button(role: .destructive) {
@@ -211,7 +174,6 @@ struct SettingsView: View {
                 Text("Your changes have been saved.")
             }
         }
-        .tint(profileManager.accentColor)
     }
 }
 

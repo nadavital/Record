@@ -11,6 +11,7 @@ struct ContentView: View {
     @State private var selectedTab = 0
     @EnvironmentObject private var musicAPI: MusicAPIManager
     @EnvironmentObject private var rankingManager: MusicRankingManager
+    @EnvironmentObject private var authManager: AuthManager  // Add this line
     @State private var statsLoadedInitially = false
     
     var body: some View {
@@ -47,7 +48,6 @@ struct ContentView: View {
                     }
                     .tag(2)
             }
-            .accentColor(Color(red: 0.94, green: 0.3, blue: 0.9))
             
             // Ranking overlays
             if rankingManager.showSentimentPicker {
@@ -90,4 +90,5 @@ struct ContentView: View {
         .environmentObject(UserProfileManager())
         .environmentObject(MusicRankingManager())
         .environmentObject(MusicAPIManager())
+        .environmentObject(AuthManager.shared)  // Add this line
 }
