@@ -39,7 +39,7 @@ struct recordApp: App {
                             checkIfUsernameNeeded()
                         }
                 } else {
-                    SignInView()
+                    SignInView(authManager: authManager, profileManager: userProfileManager)
                         .environmentObject(userProfileManager)
                         .environmentObject(authManager)
                 }
