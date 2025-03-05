@@ -12,7 +12,6 @@ class UserProfileManager: ObservableObject {
     @Published var username: String = ""
     @Published var bio: String = ""
     @Published var profileImage: String = "profile_image"
-    @Published var pinnedSongs: [Song] = []
     @Published var pinnedAlbums: [Album] = []
     @Published var pinnedArtists: [Artist] = []
     
@@ -41,8 +40,7 @@ class UserProfileManager: ObservableObject {
             self.profileImage = profile.profileImage
         }
         
-        // Load pinned songs, albums, and artists
-        self.pinnedSongs = PersistenceManager.shared.loadPinnedSongs()
+        // Load pinned albums and artists
         self.pinnedAlbums = PersistenceManager.shared.loadPinnedAlbums()
         self.pinnedArtists = PersistenceManager.shared.loadPinnedArtists()
     }
@@ -66,14 +64,6 @@ class UserProfileManager: ObservableObject {
         PersistenceManager.shared.savePinnedArtists(pinnedArtists)
     }
     
-    // Add a song to pinned songs
-    func addPinnedSong(_ song: Song) {
-        // Check if we already have this song
-        if !pinnedSongs.contains(where: { $0.id == song.id }) {
-            pinnedSongs.append(song)
-        }
-    }
-    
     // Add an album to pinned albums
     func addPinnedAlbum(_ album: Album) {
         // Check if we already have this album
@@ -89,13 +79,6 @@ class UserProfileManager: ObservableObject {
         if !pinnedArtists.contains(where: { $0.name == artist.name }) {
             pinnedArtists.append(artist)
             savePinnedArtists()
-        }
-    }
-    
-    // Remove a song from pinned songs
-    func removePinnedSong(_ song: Song) {
-        if let index = pinnedSongs.firstIndex(where: { $0.id == song.id }) {
-            pinnedSongs.remove(at: index)
         }
     }
     

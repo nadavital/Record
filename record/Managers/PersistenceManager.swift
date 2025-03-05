@@ -16,7 +16,6 @@ class PersistenceManager {
     // UserDefaults keys
     private enum Keys {
         static let rankedSongs = "rankedSongs"
-        static let pinnedSongs = "pinnedSongs"
         static let pinnedAlbums = "pinnedAlbums"
         static let pinnedArtists = "pinnedArtists"
         static let userProfile = "userProfile"
@@ -98,10 +97,6 @@ class PersistenceManager {
     
     func loadRankedSongs() -> [Song] {
         return load(forKey: Keys.rankedSongs) ?? []
-    }
-    
-    func loadPinnedSongs() -> [Song] {
-        return load(forKey: Keys.pinnedSongs) ?? []
     }
     
     func loadPinnedAlbums() -> [Album] {
@@ -225,7 +220,6 @@ class PersistenceManager {
     
     func clearAllData() {
         UserDefaults.standard.removeObject(forKey: Keys.rankedSongs)
-        UserDefaults.standard.removeObject(forKey: Keys.pinnedSongs)
         UserDefaults.standard.removeObject(forKey: Keys.pinnedAlbums)
         UserDefaults.standard.removeObject(forKey: Keys.pinnedArtists)
         UserDefaults.standard.removeObject(forKey: Keys.userProfile)
