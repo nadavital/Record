@@ -17,7 +17,7 @@ struct SongComparisonTile: View {
                 size: CGSize(width: 90, height: 90)
             )
             .shadow(radius: 3)
-            .id(song.id) // Force view refresh when song changes
+            .id(song.id)
             
             Text(song.title)
                 .font(.callout)
@@ -35,4 +35,14 @@ struct SongComparisonTile: View {
                 .multilineTextAlignment(.center)
         }
     }
+}
+
+#Preview("Song Comparison Tile") {
+    
+    var currentSong = Song(title: "No Tears Left to Cry",
+                           artist: "Ariana Grande",
+                           albumArt: "sweetener",
+                           sentiment: .love)
+    
+    SongComparisonTile(song: currentSong)
 }
