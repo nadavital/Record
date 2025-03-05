@@ -61,8 +61,8 @@ struct UnifiedSearchView: View {
                                 .padding(.leading, 8)
                             
                             TextField(searchType.placeholder, text: $searchText)
-                                .onChange(of: searchText) { newValue in
-                                    performSearch(query: newValue)
+                                .onChange(of: searchText) {
+                                    performSearch(query: searchText)
                                 }
                                 .padding(.vertical, 8)
                                 .accentColor(.accentColor) // Set cursor color

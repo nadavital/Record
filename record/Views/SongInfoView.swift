@@ -41,8 +41,8 @@ struct SongInfoView: View {
                     }
                 }
             }
-            .onChange(of: rankingManager.isRanking) { isRanking in
-                if !isRanking, let reRankedSong = reRankedSong {
+            .onChange(of: rankingManager.isRanking) { 
+                if !rankingManager.isRanking, let reRankedSong = reRankedSong {
                     Task {
                         await viewModel.refreshSongInfo(from: reRankedSong)
                     }

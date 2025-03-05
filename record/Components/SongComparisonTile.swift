@@ -39,7 +39,7 @@ struct SongComparisonTile: View {
 
 #Preview("Song Comparison Tile") {
     
-    var currentSong = Song(title: "No Tears Left to Cry",
+    let currentSong = Song(title: "No Tears Left to Cry",
                            artist: "Ariana Grande",
                            albumArt: "sweetener",
                            sentiment: .love)

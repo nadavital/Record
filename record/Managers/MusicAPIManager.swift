@@ -334,11 +334,6 @@ class MusicAPIManager: ObservableObject {
                 self.listeningHistory = historyItems
                 logger.debug("Updated listening history with \(historyItems.count) items")
             }
-        } catch {
-            logger.error("Failed to fetch listening history: \(error.localizedDescription)")
-            await MainActor.run {
-                self.errorMessage = "Failed to load listening history: \(error.localizedDescription)"
-            }
         }
     }
     

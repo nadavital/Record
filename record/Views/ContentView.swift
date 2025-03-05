@@ -16,16 +16,6 @@ struct ContentView: View {
     
     var body: some View {
         ZStack {
-            LinearGradient(
-                gradient: Gradient(colors: [
-                    Color.black.opacity(0.8),
-                    Color(red: 0.1, green: 0.05, blue: 0.2)
-                ]),
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
-            
             TabView(selection: $selectedTab) {
                 RankingView()
                     .tabItem {
@@ -76,9 +66,9 @@ struct ContentView: View {
                 statsLoadedInitially = true
             }
         }
-        .onChange(of: rankingManager.isRanking) { isRanking in
+        .onChange(of: rankingManager.isRanking) {
             // If ranking ends while on Stats tab, switch back to Stats if needed
-            if !isRanking && selectedTab == 1 {
+            if !rankingManager.isRanking && selectedTab == 1 {
                 // No explicit dismissal needed here; rely on NavigationStack
             }
         }
@@ -90,5 +80,5 @@ struct ContentView: View {
         .environmentObject(UserProfileManager())
         .environmentObject(MusicRankingManager())
         .environmentObject(MusicAPIManager())
-        .environmentObject(AuthManager.shared)  // Add this line
+        .environmentObject(AuthManager.shared)
 }
