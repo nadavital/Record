@@ -56,11 +56,6 @@ class UserProfileManager: ObservableObject {
         )
     }
     
-    // Save pinned songs
-    func savePinnedSongs() {
-        PersistenceManager.shared.savePinnedSongs(pinnedSongs)
-    }
-    
     // Save pinned albums
     func savePinnedAlbums() {
         PersistenceManager.shared.savePinnedAlbums(pinnedAlbums)
@@ -76,7 +71,6 @@ class UserProfileManager: ObservableObject {
         // Check if we already have this song
         if !pinnedSongs.contains(where: { $0.id == song.id }) {
             pinnedSongs.append(song)
-            savePinnedSongs()
         }
     }
     
@@ -102,7 +96,6 @@ class UserProfileManager: ObservableObject {
     func removePinnedSong(_ song: Song) {
         if let index = pinnedSongs.firstIndex(where: { $0.id == song.id }) {
             pinnedSongs.remove(at: index)
-            savePinnedSongs()
         }
     }
     

@@ -1,3 +1,13 @@
+//
+//  ListeningHistoryItem.swift
+//  record
+//
+//  Created by Nadav Avital on 3/4/25.
+//
+
+import Foundation
+import MediaPlayer
+
 struct ListeningHistoryItem: Identifiable {
     let id: String
     let title: String

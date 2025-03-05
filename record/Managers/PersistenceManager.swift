@@ -45,12 +45,6 @@ class PersistenceManager {
         dataChangeSubject.send()
     }
     
-    func savePinnedSongs(_ songs: [Song]) {
-        save(songs, forKey: Keys.pinnedSongs)
-        saveArtworkURLs(from: songs)
-        dataChangeSubject.send()
-    }
-    
     func savePinnedAlbums(_ albums: [Album]) {
         do {
             let encoder = JSONEncoder()
