@@ -2,7 +2,6 @@
 //  Artist.swift
 //  record
 //
-//  Created by GitHub Copilot on 3/11/25.
 //
 
 import Foundation
