@@ -213,7 +213,7 @@ struct UnifiedSearchView: View {
             rankingManager.addNewSong(song: song)
         case .album:
             let album = musicAPI.convertToAlbum(item)
-            profileManager.pinnedAlbums.append(album)
+            profileManager.addPinnedAlbum(album)
         case .artist:
             let artist = Artist(
                 name: item.artist,
