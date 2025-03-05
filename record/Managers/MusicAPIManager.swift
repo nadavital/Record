@@ -381,28 +381,5 @@ class MusicAPIManager: ObservableObject {
     }
 }
 
-struct MusicItem: Identifiable {
-    let id: String
-    let title: String
-    let artist: String
-    let albumName: String
-    let artworkID: String
-    let type: MusicItemType
-    
-    enum MusicItemType {
-        case song
-        case album
-        case artist
-    }
-}
 
-struct ListeningHistoryItem: Identifiable {
-    let id: String
-    let title: String
-    let artist: String
-    let albumName: String
-    let artworkID: String
-    let lastPlayedDate: Date?
-    let playCount: Int
-    let mediaItem: MPMediaItem // Added to store the full MPMediaItem
-}
+
