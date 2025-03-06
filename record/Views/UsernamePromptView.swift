@@ -27,7 +27,7 @@ struct UsernamePromptView: View {
     var body: some View {
         ZStack {
             // Dimmed background
-            Color.black.opacity(0.6)
+            Color.black.opacity(0.2)
                 .ignoresSafeArea()
             
             // Prompt card
@@ -35,25 +35,16 @@ struct UsernamePromptView: View {
                 Text("Create Username")
                     .font(.title2)
                     .fontWeight(.bold)
-                    .foregroundColor(.white)
                 
-                Text("Please create a unique username for your profile")
+                Text("Please choose a unique username")
                     .font(.subheadline)
-                    .foregroundColor(.white.opacity(0.8))
+                    .foregroundColor(Color(.secondaryLabel))
                     .multilineTextAlignment(.center)
                     .padding(.bottom, 10)
                 
                 TextField("Username", text: $username)
-                    .foregroundColor(.white)
                     .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(Color.white.opacity(0.1))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .stroke(Color.white.opacity(0.3), lineWidth: 1)
-                            )
-                    )
+                    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 10))
                     .autocapitalization(.none)
                     .disableAutocorrection(true)
                 
@@ -67,11 +58,11 @@ struct UsernamePromptView: View {
                 Button(action: saveUsername) {
                     if authManager.isLoading {
                         ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            .progressViewStyle(CircularProgressViewStyle(tint: .accent))
                             .frame(maxWidth: .infinity)
                             .padding()
                     } else {
-                        Text("Continue")
+                        Text("Save")
                             .fontWeight(.semibold)
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
@@ -83,23 +74,9 @@ struct UsernamePromptView: View {
                         .fill(username.count >= 3 ? Color.accentColor : Color.gray)
                 )
                 .disabled(username.count < 3 || authManager.isLoading)
-                
-                Button("Maybe Later") {
-                    isPresented = false
-                }
-                .foregroundColor(.white.opacity(0.6))
-                .padding(.top, 10)
             }
             .padding(30)
-            .background(
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(Color.black.opacity(0.9))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 20)
-                            .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
-                    )
-            )
-            .shadow(color: Color.black.opacity(0.5), radius: 20)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
             .padding()
         }
     }
@@ -127,4 +104,11 @@ struct UsernamePromptView: View {
             }
         }
     }
+}
+
+#Preview {
+    @Previewable @State var isPresented = true
+    UsernamePromptView(isPresented: $isPresented)
+        .environmentObject(AuthManager.shared)
+        .environmentObject(UserProfileManager())
 }
