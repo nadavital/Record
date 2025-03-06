@@ -88,7 +88,7 @@ struct UnifiedSearchView: View {
                         .cornerRadius(10)
                         .padding(.horizontal)
                         
-                        searchResultsView
+                        SearchResultsView(musicAPI: musicAPI, searchText: $searchText, isSearching: $isSearching, searchType: searchType)
                     }
                 }
                 .navigationTitle(searchType.title)
@@ -113,115 +113,6 @@ struct UnifiedSearchView: View {
             musicAPI.setRankingManager(rankingManager)
             await musicAPI.fetchRecentSongs() // Fetch all recent items from songs
         }
-    }
-    
-    private var searchResultsView: some View {
-        Group {
-            if musicAPI.searchResults.isEmpty && searchText.isEmpty {
-                // Select recent items based on searchType
-                let recentItems = searchType == .song ? musicAPI.recentSongs :
-                                 searchType == .album ? musicAPI.recentAlbums :
-                                 musicAPI.recentArtists
-                
-                if !recentItems.isEmpty {
-                    ScrollView {
-                        VStack(alignment: .leading) {
-                            Text("Recent")
-                                .font(.headline)
-                                .foregroundColor(.secondary)
-                                .padding(.horizontal)
-                                .padding(.top, 4)
-                            
-                            LazyVStack(spacing: 12) {
-                                ForEach(recentItems) { item in
-                                    let rankInfo = searchType == .song ?
-                                        musicAPI.checkIfSongIsRanked(title: item.title, artist: item.artist) : nil
-                                    
-                                    MusicItemTileView(
-                                        title: item.title,
-                                        artist: item.artist,
-                                        albumName: searchType == .song ? item.albumName : nil,
-                                        artworkID: item.artworkID,
-                                        onSelect: {
-                                            handleSelection(item)
-                                        },
-                                        musicAPI: musicAPI,
-                                        isAlreadyRanked: rankInfo?.isRanked ?? false,
-                                        currentRank: rankInfo?.rank ?? 0,
-                                        currentScore: rankInfo?.score ?? 0.0
-                                    )
-                                    .padding(.horizontal)
-                                }
-                            }
-                            .padding(.vertical, 8)
-                        }
-                    }
-                } else {
-                    VStack(spacing: 12) {
-                        Image(systemName: "magnifyingglass")
-                            .font(.system(size: 32))
-                            .foregroundColor(.accentColor.opacity(0.7))
-                            .padding(.bottom, 8)
-                        
-                        Text("Start typing to search")
-                            .font(.headline)
-                            .foregroundColor(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-            } else if musicAPI.searchResults.isEmpty && isSearching {
-                ProgressView()
-                    .tint(.accentColor)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if musicAPI.searchResults.isEmpty && !searchText.isEmpty && !isSearching {
-                Text("No results found")
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                ScrollView {
-                    LazyVStack(spacing: 12) {
-                        ForEach(musicAPI.searchResults) { item in
-                            let rankInfo = searchType == .song ?
-                                musicAPI.checkIfSongIsRanked(title: item.title, artist: item.artist) : nil
-                            
-                            MusicItemTileView(
-                                title: item.title,
-                                artist: item.artist,
-                                albumName: searchType == .song ? item.albumName : nil,
-                                artworkID: item.artworkID,
-                                onSelect: {
-                                    handleSelection(item)
-                                },
-                                musicAPI: musicAPI,
-                                isAlreadyRanked: rankInfo?.isRanked ?? false,
-                                currentRank: rankInfo?.rank ?? 0,
-                                currentScore: rankInfo?.score ?? 0.0
-                            )
-                            .padding(.horizontal)
-                        }
-                    }
-                    .padding(.vertical, 8)
-                }
-            }
-        }
-    }
-    
-    private func handleSelection(_ item: MusicItem) {
-        switch searchType {
-        case .song:
-            let song = musicAPI.convertToSong(item)
-            rankingManager.addNewSong(song: song)
-        case .album:
-            let album = musicAPI.convertToAlbum(item)
-            profileManager.addPinnedAlbum(album)
-        case .artist:
-            let artist = Artist(
-                name: item.artist,
-                artworkURL: musicAPI.getArtworkURL(for: item.artworkID)
-            )
-            profileManager.addPinnedArtist(artist)
-        }
-        presentationMode.wrappedValue.dismiss()
     }
     
     private func performSearch(query: String) {
@@ -263,4 +154,10 @@ struct UnifiedSearchView: View {
             }
         }
     }
+}
+
+#Preview {
+    UnifiedSearchView(searchType: .song)
+    .environmentObject(UserProfileManager())
+    .environmentObject(MusicRankingManager())
 }
