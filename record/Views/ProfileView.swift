@@ -38,7 +38,7 @@ struct ProfileView: View {
                         showArtistPicker: $showArtistPicker)
                         .padding(.horizontal)
                     // Songs section
-                    TopSongsSection()
+                    ProfileTopThreeRankedSongsSection()
                         .padding(.horizontal)
                 }
                 .padding(.vertical)

@@ -8,7 +8,7 @@
 import SwiftUI
     // Top Songs from rankings section
 
-struct TopSongsSection: View {
+struct ProfileTopThreeRankedSongsSection: View {
     @EnvironmentObject var rankingManager: MusicRankingManager
     private var topSongs: [Song] {
         return Array(rankingManager.rankedSongs.prefix(3))
@@ -60,7 +60,7 @@ struct TopSongsSection: View {
         Song(id: UUID(), title: "Hotel California", artist: "Eagles", albumArt: "Hotel California", sentiment: .love, score: 8.5),
         Song(id: UUID(), title: "Sweet Child O' Mine", artist: "Guns N' Roses", albumArt: "Appetite for Destruction", sentiment: .fine, score: 7.0)
     ]
-    return TopSongsSection()
+    return ProfileTopThreeRankedSongsSection()
         .environmentObject(rankingManager)
         .environmentObject(MusicAPIManager())
 }
