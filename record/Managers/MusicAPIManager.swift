@@ -14,6 +14,7 @@ class MusicAPIManager: ObservableObject {
     @Published var recentAlbums: [MusicItem] = []
     @Published var recentArtists: [MusicItem] = []
     @Published var listeningHistory: [ListeningHistoryItem] = []
+    @Published var currentPlayingSong: Song? = nil
     
     private var artworkCache: [String: URL] = [:]
     private var activeTask: Task<Void, Never>?
@@ -373,6 +374,137 @@ class MusicAPIManager: ObservableObject {
             return artwork.image(at: CGSize(width: 100, height: 100))
         }
         return nil
+    }
+    
+    func getArtworkImage(for title: String, artist: String) -> UIImage? {
+        // First check if we have the image URL cached
+        let cacheKey = "\(title)-\(artist)".lowercased()
+        if let url = artworkCache[cacheKey],
+           let imageData = try? Data(contentsOf: url),
+           let image = UIImage(data: imageData) {
+            return image
+        }
+        
+        // Try finding it in the media library
+        let query = MPMediaQuery.songs()
+        let titlePredicate = MPMediaPropertyPredicate(
+            value: title,
+            forProperty: MPMediaItemPropertyTitle,
+            comparisonType: .contains
+        )
+        let artistPredicate = MPMediaPropertyPredicate(
+            value: artist,
+            forProperty: MPMediaItemPropertyArtist,
+            comparisonType: .contains
+        )
+        query.addFilterPredicate(titlePredicate)
+        query.addFilterPredicate(artistPredicate)
+        
+        if let mediaItem = query.items?.first,
+           let artwork = mediaItem.artwork {
+            return artwork.image(at: CGSize(width: 100, height: 100))
+        }
+        
+        return nil
+    }
+    
+    func setupNowPlayingMonitoring() {
+        // Set up notification observer for music player changes
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleMusicPlayerNotification),
+            name: .MPMusicPlayerControllerNowPlayingItemDidChange,
+            object: MPMusicPlayerController.systemMusicPlayer
+        )
+        
+        MPMusicPlayerController.systemMusicPlayer.beginGeneratingPlaybackNotifications()
+        
+        // Initial check for currently playing song
+        updateCurrentPlayingSong()
+    }
+
+    @objc private func handleMusicPlayerNotification() {
+        updateCurrentPlayingSong()
+    }
+
+    func updateCurrentPlayingSong() {
+        guard let mediaItem = MPMusicPlayerController.systemMusicPlayer.nowPlayingItem else {
+            // No song is currently playing
+            currentPlayingSong = nil
+            return
+        }
+        
+        // Create Song object from MPMediaItem
+        let title = mediaItem.title ?? "Unknown Title"
+        let artist = mediaItem.artist ?? "Unknown Artist"
+        var artworkURL: URL? = nil
+        
+        // Try to get artwork
+        if let artwork = mediaItem.artwork {
+            let image = artwork.image(at: CGSize(width: 300, height: 300))
+            
+            // Save artwork to temporary directory and create URL
+            if let image = image, let data = image.jpegData(compressionQuality: 0.8) {
+                let fileManager = FileManager.default
+                let tempURL = fileManager.temporaryDirectory.appendingPathComponent("\(mediaItem.persistentID).jpg")
+                try? data.write(to: tempURL)
+                artworkURL = tempURL
+            }
+        }
+        
+        // Create song object
+        let song = Song(
+            id: UUID(),
+            title: title,
+            artist: artist,
+            albumArt: mediaItem.albumTitle ?? "",
+            sentiment: .fine,
+            artworkURL: artworkURL,
+            score: 0.0
+        )
+        
+        // Check if song is already ranked
+        if let rankingInfo = checkIfSongIsRanked(title: title, artist: artist),
+           rankingInfo.isRanked,
+           let index = rankingManager?.rankedSongs.firstIndex(where: {
+               $0.title.lowercased() == title.lowercased() &&
+               $0.artist.lowercased() == artist.lowercased()
+           }) {
+            // Update with ranked info
+            let rankedSong = rankingManager!.rankedSongs[index]
+            currentPlayingSong = rankedSong
+        } else {
+            currentPlayingSong = song
+        }
+    }
+
+    // For testing purposes - set a sample song if nothing is playing
+    func setDemoCurrentSong() {
+        if currentPlayingSong == nil {
+            // Find a song from listening history or recent songs to use as demo
+            if let firstHistorySong = listeningHistory.first {
+                let demoSong = Song(
+                    id: UUID(),
+                    title: firstHistorySong.title,
+                    artist: firstHistorySong.artist,
+                    albumArt: firstHistorySong.albumName,
+                    sentiment: .fine,
+                    score: 0.0
+                )
+                currentPlayingSong = demoSong
+            } else {
+                // Create a fallback demo song
+                let demoSong = Song(
+                    id: UUID(),
+                    title: "Demo Song",
+                    artist: "Demo Artist",
+                    albumArt: "Demo Album",
+                    sentiment: .fine,
+                    score: 0.0
+                )
+                currentPlayingSong = demoSong
+            }
+        }
     }
 }
 

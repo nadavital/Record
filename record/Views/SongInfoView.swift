@@ -10,11 +10,19 @@ struct SongInfoView: View {
     private let mediaItem: MPMediaItem?
     private let rankedSong: Song?
     @State private var reRankedSong: Song? // Track re-ranked song locally
+    private let onReRankButtonTapped: (() -> Void)?
     
-    init(mediaItem: MPMediaItem? = nil, rankedSong: Song? = nil, musicAPI: MusicAPIManager, rankingManager: MusicRankingManager) {
+    init(
+        mediaItem: MPMediaItem? = nil,
+        rankedSong: Song? = nil,
+        musicAPI: MusicAPIManager,
+        rankingManager: MusicRankingManager,
+        onReRankButtonTapped: (() -> Void)? = nil
+    ) {
         self._viewModel = StateObject(wrappedValue: SongInfoViewModel(musicAPI: musicAPI, rankingManager: rankingManager))
         self.mediaItem = mediaItem
         self.rankedSong = rankedSong
+        self.onReRankButtonTapped = onReRankButtonTapped
     }
     
     var body: some View {
@@ -23,7 +31,16 @@ struct SongInfoView: View {
                 if viewModel.isLoading {
                     ProgressView()
                 } else if let song = viewModel.unifiedSong {
-                    SongInfoContentView(song: song, onReRank: { reRankSong(currentSong: song) })
+                    SongInfoContentView(
+                        song: song,
+                        onReRank: { 
+                            if let onReRankButtonTapped = onReRankButtonTapped {
+                                onReRankButtonTapped()
+                            } else {
+                                reRankSong(currentSong: song)
+                            }
+                        }
+                    )
                 } else if let error = viewModel.errorMessage {
                     Text(error).foregroundColor(.red)
                 } else {
