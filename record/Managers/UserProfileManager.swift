@@ -14,6 +14,7 @@ class UserProfileManager: ObservableObject {
     @Published var profileImage: String = "profile_image"
     @Published var pinnedAlbums: [Album] = []
     @Published var pinnedArtists: [Artist] = []
+    @Published var albumRatings: [AlbumRating] = []
     
     // Track subscriptions for cleanup
     private var cancellables = Set<AnyCancellable>()
@@ -96,5 +97,56 @@ class UserProfileManager: ObservableObject {
             pinnedArtists.remove(at: index)
             savePinnedArtists()
         }
+    }
+    
+    // Load album ratings
+    func loadAlbumRatings() {
+        albumRatings = PersistenceManager.shared.loadAlbumRatings()
+    }
+    
+    // Get a specific album rating
+    func getAlbumRating(forAlbumId albumId: String) -> AlbumRating? {
+        return albumRatings.first(where: { $0.albumId == albumId })
+    }
+    
+    // Save album rating
+    func saveAlbumRating(_ rating: AlbumRating) {
+        var updatedRating = rating
+        
+        // Ensure rating is in 0.5 increments and within range
+        let validRating = max(0.0, min(5.0, round(rating.rating * 2) / 2))
+        updatedRating.rating = validRating
+        
+        PersistenceManager.shared.saveAlbumRating(updatedRating)
+        
+        // Update local state
+        if let index = albumRatings.firstIndex(where: { $0.id == rating.id }) {
+            albumRatings[index] = updatedRating
+        } else {
+            albumRatings.append(updatedRating)
+        }
+    }
+    
+    // Delete album rating
+    func deleteAlbumRating(_ rating: AlbumRating) {
+        PersistenceManager.shared.deleteAlbumRating(withId: rating.id)
+        albumRatings.removeAll(where: { $0.id == rating.id })
+    }
+    
+    // Get top rated albums
+    func getTopRatedAlbums(limit: Int = 5) -> [AlbumRating] {
+        return albumRatings
+            .filter { $0.rating > 0 }
+            .sorted(by: { $0.rating > $1.rating })
+            .prefix(limit)
+            .map { $0 }
+    }
+    
+    // Get recently rated albums
+    func getRecentlyRatedAlbums(limit: Int = 5) -> [AlbumRating] {
+        return albumRatings
+            .sorted(by: { $0.dateAdded > $1.dateAdded })
+            .prefix(limit)
+            .map { $0 }
     }
 }

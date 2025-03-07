@@ -168,6 +168,45 @@ class PersistenceManager {
         )
     }
     
+    // MARK: - Album Ratings
+        
+        private enum AlbumRatingKeys {
+            static let albumRatings = "albumRatings"
+        }
+        
+        func saveAlbumRatings(_ ratings: [AlbumRating]) {
+            save(ratings, forKey: AlbumRatingKeys.albumRatings)
+            dataChangeSubject.send()
+        }
+        
+        func loadAlbumRatings() -> [AlbumRating] {
+            return load(forKey: AlbumRatingKeys.albumRatings) ?? []
+        }
+        
+        func saveAlbumRating(_ rating: AlbumRating) {
+            var ratings = loadAlbumRatings()
+            
+            // Update existing or add new
+            if let index = ratings.firstIndex(where: { $0.id == rating.id }) {
+                ratings[index] = rating
+            } else {
+                ratings.append(rating)
+            }
+            
+            saveAlbumRatings(ratings)
+        }
+        
+        func deleteAlbumRating(withId id: UUID) {
+            var ratings = loadAlbumRatings()
+            ratings.removeAll(where: { $0.id == id })
+            saveAlbumRatings(ratings)
+        }
+        
+        func getAlbumRating(forAlbumId albumId: String) -> AlbumRating? {
+            let ratings = loadAlbumRatings()
+            return ratings.first(where: { $0.albumId == albumId })
+        }
+    
     // MARK: - Helper Methods
     
     private func save<T: Encodable>(_ object: T, forKey key: String) {

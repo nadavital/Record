@@ -40,6 +40,9 @@ struct ProfileView: View {
                     // Songs section
                     ProfileTopThreeRankedSongsSection()
                         .padding(.horizontal)
+                    //Album rating section
+                    ProfileAlbumRatingsSection()
+                        .padding(.horizontal)
                 }
                 .padding(.vertical)
             }
