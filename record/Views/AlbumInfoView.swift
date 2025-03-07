@@ -43,6 +43,11 @@ struct AlbumInfoView: View {
                 Divider()
                 
                 tracksSection
+                
+                // Padding at the bottom for now playing bar
+                Color.clear
+                    .frame(height: 80)
+                    .listRowInsets(EdgeInsets())
             }
             .padding()
         }
@@ -77,8 +82,8 @@ struct AlbumInfoView: View {
                 dismissButton: .default(Text("OK"))
             )
         }
-        .onChange(of: selectedTrack) { newTrack in
-            if let track = newTrack {
+        .onChange(of: selectedTrack) {
+            if let track = selectedTrack {
                 fetchSongForTrack(track)
             }
         }

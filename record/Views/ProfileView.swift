@@ -21,7 +21,7 @@ struct ProfileView: View {
     
     var body: some View {
         NavigationStack {
-            ScrollView {
+            ScrollView(showsIndicators: false) {
                 VStack(spacing: 20) {
                     // Profile header
                     ProfileHeader()
@@ -32,17 +32,25 @@ struct ProfileView: View {
                         isEditingAlbums: $isEditingAlbums,
                         showAlbumPicker: $showAlbumPicker)
                         .padding(.horizontal)
+                    
                     // Top artists section
                     ArtistSection(
                         isEditingArtists: $isEditingArtists,
                         showArtistPicker: $showArtistPicker)
                         .padding(.horizontal)
+                    
                     // Songs section
                     ProfileTopThreeRankedSongsSection()
                         .padding(.horizontal)
+                    
                     //Album rating section
                     ProfileAlbumRatingsSection()
                         .padding(.horizontal)
+                    
+                    // Padding at the bottom for now playing bar
+                    Color.clear
+                        .frame(height: 80)
+                        .listRowInsets(EdgeInsets())
                 }
                 .padding(.vertical)
             }

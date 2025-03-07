@@ -119,6 +119,11 @@ struct SongInfoContentView: View {
                         .shadow(radius: 3)
                 }
                 .padding(.top, 5)
+                
+                // Padding at the bottom for now playing bar
+                Color.clear
+                    .frame(height: 80)
+                    .listRowInsets(EdgeInsets())
             }
             .padding(.horizontal)
             .padding(.bottom)

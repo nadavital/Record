@@ -25,6 +25,10 @@ struct TopSongsListView: View {
                         songRowView(song: item.song, count: item.count)
                     }
                 }
+                // Padding at the bottom for now playing bar
+                Color.clear
+                    .frame(height: 80)
+                    .listRowInsets(EdgeInsets())
             }
         }
         .navigationTitle("Top Songs")

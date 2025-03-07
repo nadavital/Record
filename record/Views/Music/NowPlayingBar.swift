@@ -96,11 +96,16 @@ struct NowPlayingBar: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
-            .padding(.horizontal)
-            .padding(.bottom, 4)
+//            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
         }
         .buttonStyle(NoFeedbackButtonStyle())
+        .background {
+            RoundedRectangle(cornerRadius: 12)
+                .fill(.ultraThinMaterial)
+                .shadow(radius: 12, y: 4)
+        }
+        .padding(.horizontal)
+        .padding(.bottom, 4)
         .sheet(isPresented: $showSongInfo) {
             if let currentSong = musicAPI.currentPlayingSong {
                 NavigationStack {
@@ -130,7 +135,7 @@ struct NowPlayingBar: View {
                 .presentationDragIndicator(.visible)
             }
         }
-        .onChange(of: rankingManager.isRanking) { _ in
+        .onChange(of: rankingManager.isRanking) {
             if !rankingManager.isRanking, currentlyDisplayedSong != nil {
                 currentlyDisplayedSong = nil
             }
@@ -141,7 +146,7 @@ struct NowPlayingBar: View {
                 setupPlaybackObserver()
             }
         }
-        .onChange(of: musicAPI.currentPlayingSong) { _ in
+        .onChange(of: musicAPI.currentPlayingSong) {
             updatePlaybackState()
         }
         .onReceive(NotificationCenter.default.publisher(for: .MPMusicPlayerControllerPlaybackStateDidChange)) { _ in

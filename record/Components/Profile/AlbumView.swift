@@ -108,4 +108,5 @@ struct AlbumView: View {
     let album = Album(title: "Sweetener", artist: "Ariana Grande", albumArt: "Sweetener")
     AlbumView(album: album, isEditingAlbums: $isEditingAlbums)
         .environmentObject(UserProfileManager())
+        .environmentObject(MusicAPIManager())
 }

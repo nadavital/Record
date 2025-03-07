@@ -34,6 +34,10 @@ struct RankedSongListView: View {
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
                 }
+                // Padding at the bottom for now playing bar
+                Color.clear
+                    .frame(height: 80)
+                    .listRowInsets(EdgeInsets())
             }
             .listStyle(.plain)
             .animation(.easeOut(duration: 0.2), value: filteredSongs)

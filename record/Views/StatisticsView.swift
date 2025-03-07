@@ -9,11 +9,15 @@ struct StatisticsView: View {
     
     var body: some View {
         NavigationStack {
-            ScrollView {
+            ScrollView(showsIndicators: false) {
                 VStack(spacing: 20) {
                     StatsTopSongsSection().padding(.horizontal)
                     StatsTopArtistsSection().padding(.horizontal)
                     StatsTopAlbumsSection().padding(.horizontal)
+                    // Padding at the bottom for now playing bar
+                    Color.clear
+                        .frame(height: 80)
+                        .listRowInsets(EdgeInsets())
                 }
                 .padding(.vertical, 16)
             }

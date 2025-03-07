@@ -104,7 +104,7 @@ struct ContentView: View {
                 // No explicit dismissal needed here; rely on NavigationStack
             }
         }
-        .onChange(of: musicAPI.currentPlayingSong) { _ in
+        .onChange(of: musicAPI.currentPlayingSong) { 
             // Only update visibility if we're not loading
             if !isLoading {
                 withAnimation(.spring()) {

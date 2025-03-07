@@ -26,6 +26,10 @@ struct TopArtistsListView: View {
                         .foregroundColor(.secondary)
                 }
             }
+            // Padding at the bottom for now playing bar
+            Color.clear
+                .frame(height: 80)
+                .listRowInsets(EdgeInsets())
         }
         .navigationTitle("Top Artists")
         .navigationBarTitleDisplayMode(.inline)
