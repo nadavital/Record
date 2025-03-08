@@ -53,19 +53,15 @@ struct RemoteArtworkView: View {
                     .frame(width: max(1, size.width), height: max(1, size.height))
                     .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
             } else {
-                // Placeholder with gradient background
                 ZStack {
-                    // Base shape with gradient
                     RoundedRectangle(cornerRadius: cornerRadius)
                         .fill(generateGradient(from: placeholderText))
                         .frame(width: max(1, size.width), height: max(1, size.height))
                     
-                    // Initial letter
                     Text(placeholderText.prefix(1).uppercased())
                         .font(.system(size: max(1, size.width * 0.4), weight: .semibold))
                         .foregroundColor(.white)
                     
-                    // Loading indicator
                     if isLoading && !loadingFailed {
                         ProgressView()
                             .progressViewStyle(CircularProgressViewStyle(tint: .white))
@@ -75,7 +71,7 @@ struct RemoteArtworkView: View {
             }
         }
         .shadow(color: Color(.sRGBLinear, white: 0, opacity: 0.1), radius: 2)
-        .task {
+        .task(id: artworkURL) { // Re-run when artworkURL changes
             await loadImage()
         }
     }
