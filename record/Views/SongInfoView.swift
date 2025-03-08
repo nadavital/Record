@@ -8,83 +8,125 @@ struct SongInfoView: View {
     @EnvironmentObject private var rankingManager: MusicRankingManager
     @Environment(\.dismiss) var dismiss
     
+    // Keep track of how the view was presented
+    private let presentationStyle: PresentationStyle
+    
+    enum PresentationStyle {
+        case fullscreen  // View is presented as a full screen (push navigation)
+        case sheetFromAlbum  // View is presented as a sheet from album view
+        case sheetFromNowPlaying  // View is presented as a sheet from now playing bar
+    }
+    
     private let mediaItem: MPMediaItem?
     private let rankedSong: Song?
     @State private var reRankedSong: Song?
-    @State private var showAlbumInfo = false
     private let onReRankButtonTapped: (() -> Void)?
+    private let onShowAlbum: (() -> Void)? // Callback to handle album navigation in parent
+    
+    // State for in-view navigation
+    @State private var navigateToAlbum = false
+    @State private var albumToShow: Album? = nil
     
     init(
         mediaItem: MPMediaItem? = nil,
         rankedSong: Song? = nil,
         musicAPI: MusicAPIManager,
         rankingManager: MusicRankingManager,
-        onReRankButtonTapped: (() -> Void)? = nil
+        presentationStyle: PresentationStyle = .fullscreen, // Default to fullscreen
+        onReRankButtonTapped: (() -> Void)? = nil,
+        onShowAlbum: (() -> Void)? = nil
     ) {
         self._viewModel = StateObject(wrappedValue: SongInfoViewModel(musicAPI: musicAPI, rankingManager: rankingManager))
         self.mediaItem = mediaItem
         self.rankedSong = rankedSong
+        self.presentationStyle = presentationStyle
         self.onReRankButtonTapped = onReRankButtonTapped
+        self.onShowAlbum = onShowAlbum
     }
     
     var body: some View {
-        NavigationStack {
-            Group {
-                if viewModel.isLoading {
-                    ProgressView()
-                } else if let song = viewModel.unifiedSong {
-                    SongInfoContentView(
-                        song: song,
-                        onReRank: {
-                            if let onReRankButtonTapped = onReRankButtonTapped {
-                                onReRankButtonTapped()
-                            } else {
-                                reRankSong(currentSong: song)
-                            }
-                        },
-                        onShowAlbum: { showAlbumInfo = true }
-                    )
-                } else if let error = viewModel.errorMessage {
-                    Text(error).foregroundColor(.red)
+        Group {
+            if viewModel.isLoading {
+                ProgressView()
+            } else if let song = viewModel.unifiedSong {
+                SongInfoContentView(
+                    song: song,
+                    onReRank: {
+                        if let onReRankButtonTapped = onReRankButtonTapped {
+                            onReRankButtonTapped()
+                        } else {
+                            reRankSong(currentSong: song)
+                        }
+                    },
+                    onShowAlbum: {
+                        handleAlbumNavigation(song: song)
+                    }
+                )
+            } else if let error = viewModel.errorMessage {
+                Text(error).foregroundColor(.red)
+            } else {
+                Text("No song data available").foregroundColor(.gray)
+            }
+        }
+        .navigationTitle(viewModel.unifiedSong?.title ?? "Song Info")
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationDestination(isPresented: $navigateToAlbum) {
+            if let album = albumToShow {
+                AlbumInfoView(
+                    album: album,
+                    musicAPI: musicAPI
+                )
+                .environmentObject(musicAPI)
+                .environmentObject(rankingManager)
+            }
+        }
+        .onAppear {
+            Task {
+                if let mediaItem = mediaItem {
+                    await viewModel.loadSongInfo(from: mediaItem)
+                } else if let rankedSong = rankedSong {
+                    await viewModel.loadSongInfo(from: rankedSong)
                 } else {
-                    Text("No song data available").foregroundColor(.gray)
+                    assertionFailure("No song data provided")
                 }
             }
-            .navigationTitle("Song Info")
-            .navigationBarTitleDisplayMode(.inline)
-            .onAppear {
+        }
+        .onChange(of: rankingManager.isRanking) {
+            if !rankingManager.isRanking, let reRankedSong = reRankedSong {
                 Task {
-                    if let mediaItem = mediaItem {
-                        await viewModel.loadSongInfo(from: mediaItem)
-                    } else if let rankedSong = rankedSong {
-                        await viewModel.loadSongInfo(from: rankedSong)
-                    } else {
-                        assertionFailure("No song data provided")
-                    }
+                    await viewModel.refreshSongInfo(from: reRankedSong)
                 }
             }
-            .onChange(of: rankingManager.isRanking) {
-                if !rankingManager.isRanking, let reRankedSong = reRankedSong {
-                    Task {
-                        await viewModel.refreshSongInfo(from: reRankedSong)
-                    }
-                }
-            }
-            .navigationDestination(isPresented: $showAlbumInfo) {
-                if let musicKitAlbum = viewModel.associatedAlbum {
-                    AlbumInfoView(
-                        album: Album(
-                            id: UUID(uuidString: musicKitAlbum.id.rawValue) ?? UUID(),
-                            title: musicKitAlbum.title,
-                            artist: musicKitAlbum.artistName,
-                            albumArt: musicKitAlbum.title, // Use title as albumArt
-                            artworkURL: musicKitAlbum.artwork?.url(width: 300, height: 300) // Pass URL? directly
-                        ),
-                        musicAPI: musicAPI
-                    )
-                    .environmentObject(musicAPI)
-                    .environmentObject(rankingManager)
-                }
+        }
+    }
+    
+    // Handle album navigation based on presentation style
+    private func handleAlbumNavigation(song: UnifiedSong) {
+        // Create the album regardless of navigation path
+        let album = Album(
+            id: UUID(),
+            title: song.album,
+            artist: song.artist,
+            albumArt: song.album,
+            artworkURL: song.artworkURL
+        )
+        
+        switch presentationStyle {
+        case .fullscreen:
+            // Use NavigationStack destination for smooth in-stack navigation
+            albumToShow = album
+            navigateToAlbum = true
+        case .sheetFromAlbum:
+            // Just dismiss the sheet if we came from album view
+            dismiss()
+        case .sheetFromNowPlaying:
+            // Store album info before dismissing
+            albumToShow = album
+            // Dismiss this sheet and tell parent to navigate
+            dismiss()
+            // Use the callback to tell NowPlayingBar to navigate
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                onShowAlbum?()
             }
         }
     }
@@ -120,6 +162,8 @@ struct SongInfoView: View {
     }
 }
 
+// Rest of the view structs remain unchanged
+
 struct SongInfoContentView: View {
     let song: UnifiedSong
     let onReRank: () -> Void
@@ -128,7 +172,7 @@ struct SongInfoContentView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                ArtworkCard(song: song)
+                ArtworkCard(song: song, onShowAlbum: onShowAlbum)
                 StatsCard(song: song)
                 MetadataCard(song: song)
                 
@@ -139,18 +183,6 @@ struct SongInfoContentView: View {
                         .padding()
                         .background(Color.accentColor)
                         .foregroundColor(.white)
-                        .cornerRadius(12)
-                        .shadow(radius: 3)
-                }
-                .padding(.top, 5)
-                
-                Button(action: onShowAlbum) {
-                    Text("View Album")
-                        .fontWeight(.semibold)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color(.systemGray4))
-                        .foregroundColor(.primary)
                         .cornerRadius(12)
                         .shadow(radius: 3)
                 }
@@ -170,10 +202,10 @@ struct SongInfoContentView: View {
     }
 }
 
-// Other structs (ArtworkCard, StatsCard, MetadataCard, StatItem, MetadataItem) remain unchanged from your provided code
-
+// The ArtworkCard is updated with better visual cues
 struct ArtworkCard: View {
     let song: UnifiedSong
+    let onShowAlbum: () -> Void
     
     var body: some View {
         VStack(spacing: 16) {
@@ -197,9 +229,16 @@ struct ArtworkCard: View {
                 Text(song.artist)
                     .font(.title3)
                     .foregroundColor(.secondary)
-                Text(song.album)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
+                Button(action: onShowAlbum) {
+                    HStack {
+                        Text(song.album)
+                            .font(.subheadline)
+                            .foregroundColor(.accentColor)
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundColor(.accentColor)
+                    }
+                }
             }
             .padding(.top, 4)
             .padding(.bottom, 8)
@@ -210,6 +249,8 @@ struct ArtworkCard: View {
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 }
+
+// Rest of the code remains unchanged
 
 struct StatsCard: View {
     let song: UnifiedSong

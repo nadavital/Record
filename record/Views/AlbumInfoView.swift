@@ -170,10 +170,12 @@ struct AlbumInfoView: View {
                 rankedSong: getRankedSong(for: track) ?? convertTrackToSong(track),
                 musicAPI: musicAPI,
                 rankingManager: rankingManager,
+                presentationStyle: .sheetFromAlbum, // Specify it's from album view
                 onReRankButtonTapped: {
                     rankingManager.addNewSong(song: getRankedSong(for: track) ?? convertTrackToSong(track))
                     selectedTrack = nil
                 }
+                // No need for onShowAlbum since we're already in the album view
             )
             .environmentObject(musicAPI)
             .environmentObject(rankingManager)
