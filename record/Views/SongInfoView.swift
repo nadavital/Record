@@ -9,7 +9,7 @@ struct SongInfoView: View {
     
     private let mediaItem: MPMediaItem?
     private let rankedSong: Song?
-    @State private var reRankedSong: Song? // Track re-ranked song locally
+    @State private var reRankedSong: Song?
     private let onReRankButtonTapped: (() -> Void)?
     
     init(
@@ -55,6 +55,8 @@ struct SongInfoView: View {
                         await viewModel.loadSongInfo(from: mediaItem)
                     } else if let rankedSong = rankedSong {
                         await viewModel.loadSongInfo(from: rankedSong)
+                    } else {
+                        assertionFailure("No song data provided")
                     }
                 }
             }

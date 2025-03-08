@@ -96,7 +96,6 @@ struct NowPlayingBar: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
-//            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
         }
         .buttonStyle(NoFeedbackButtonStyle())
         .background {
@@ -110,6 +109,7 @@ struct NowPlayingBar: View {
             if let currentSong = musicAPI.currentPlayingSong {
                 NavigationStack {
                     SongInfoView(
+                        mediaItem: MPMusicPlayerController.systemMusicPlayer.nowPlayingItem,
                         rankedSong: currentSong,
                         musicAPI: musicAPI,
                         rankingManager: rankingManager,
