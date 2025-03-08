@@ -1,16 +1,16 @@
 import Foundation
 import SwiftUI
 import MusicKit
-import Combine
+import MediaPlayer
 
 class AlbumInfoViewModel: ObservableObject {
     @Published var albumDetails: MusicKit.Album?
-    @Published var albumSongs: [Track] = [] // Changed from [MusicKit.Song] to [Track]
+    @Published var albumSongs: [Track] = []
+    @Published var totalPlayCount: Int = 0
     @Published var isLoadingAlbumDetails = true
     @Published var errorMessage: String?
     
     private var musicAPI: MusicAPIManager
-    private var cancellables = Set<AnyCancellable>()
     
     init(musicAPI: MusicAPIManager) {
         self.musicAPI = musicAPI
@@ -25,29 +25,26 @@ class AlbumInfoViewModel: ObservableObject {
                 request.limit = 1
                 
                 let response = try await request.response()
-                print("Search term: \(album.title) \(album.artist), Found albums: \(response.albums.count)")
-                
                 if let fetchedAlbum = response.albums.first {
-                    print("Fetching tracks for album: \(fetchedAlbum.title)")
                     let detailedAlbum = try await fetchedAlbum.with([.tracks])
                     let tracks = detailedAlbum.tracks ?? []
-                    print("Total tracks fetched: \(tracks.count)")
+                    
+                    // Calculate total play count from local library
+                    let playCount = await calculateTotalPlayCount(for: tracks)
                     
                     await MainActor.run {
                         self.albumDetails = detailedAlbum
-                        self.albumSongs = Array(tracks) // Store tracks directly
+                        self.albumSongs = Array(tracks)
+                        self.totalPlayCount = playCount
                         self.isLoadingAlbumDetails = false
-                        print("Loaded \(tracks.count) tracks")
                     }
                 } else {
                     await MainActor.run {
                         self.isLoadingAlbumDetails = false
                         self.errorMessage = "Album not found"
-                        print("No album found in catalog")
                     }
                 }
             } catch {
-                print("Error loading album details: \(error.localizedDescription)")
                 await MainActor.run {
                     self.isLoadingAlbumDetails = false
                     self.errorMessage = "Failed to load album details: \(error.localizedDescription)"
@@ -56,28 +53,43 @@ class AlbumInfoViewModel: ObservableObject {
         }
     }
     
-    func getSongWithMostPlays() -> Track? { // Updated return type
-        return albumSongs.first
+    private func calculateTotalPlayCount(for tracks: MusicItemCollection<Track>) async -> Int {
+        var total = 0
+        for track in tracks {
+            let query = MPMediaQuery.songs()
+            let titlePredicate = MPMediaPropertyPredicate(
+                value: track.title,
+                forProperty: MPMediaItemPropertyTitle,
+                comparisonType: .equalTo
+            )
+            let artistPredicate = MPMediaPropertyPredicate(
+                value: track.artistName,
+                forProperty: MPMediaItemPropertyArtist,
+                comparisonType: .equalTo
+            )
+            query.addFilterPredicate(titlePredicate)
+            query.addFilterPredicate(artistPredicate)
+            if let mediaItem = query.items?.first {
+                total += mediaItem.playCount
+            }
+        }
+        return total
     }
     
-    func getRankedSongs(rankingManager: MusicRankingManager) -> [Track] { // Updated return type
+    func getRankedSongs(rankingManager: MusicRankingManager) -> [Track] {
         return albumSongs.filter { track in
-            let songTitle = track.title
-            let songArtist = track.artistName
-            return rankingManager.rankedSongs.contains { rankedSong in
-                rankedSong.title.lowercased() == songTitle.lowercased() &&
-                rankedSong.artist.lowercased() == songArtist.lowercased()
+            rankingManager.rankedSongs.contains { rankedSong in
+                rankedSong.title.lowercased() == track.title.lowercased() &&
+                rankedSong.artist.lowercased() == track.artistName.lowercased()
             }
         }
     }
     
-    func getUnrankedSongs(rankingManager: MusicRankingManager) -> [Track] { // Updated return type
+    func getUnrankedSongs(rankingManager: MusicRankingManager) -> [Track] {
         return albumSongs.filter { track in
-            let songTitle = track.title
-            let songArtist = track.artistName
-            return !rankingManager.rankedSongs.contains { rankedSong in
-                rankedSong.title.lowercased() == songTitle.lowercased() &&
-                rankedSong.artist.lowercased() == songArtist.lowercased()
+            !rankingManager.rankedSongs.contains { rankedSong in
+                rankedSong.title.lowercased() == track.title.lowercased() &&
+                rankedSong.artist.lowercased() == track.artistName.lowercased()
             }
         }
     }

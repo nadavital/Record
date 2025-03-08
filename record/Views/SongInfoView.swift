@@ -4,12 +4,14 @@ import MusicKit
 
 struct SongInfoView: View {
     @StateObject private var viewModel: SongInfoViewModel
+    @EnvironmentObject private var musicAPI: MusicAPIManager
     @EnvironmentObject private var rankingManager: MusicRankingManager
     @Environment(\.dismiss) var dismiss
     
     private let mediaItem: MPMediaItem?
     private let rankedSong: Song?
     @State private var reRankedSong: Song?
+    @State private var showAlbumInfo = false
     private let onReRankButtonTapped: (() -> Void)?
     
     init(
@@ -33,13 +35,14 @@ struct SongInfoView: View {
                 } else if let song = viewModel.unifiedSong {
                     SongInfoContentView(
                         song: song,
-                        onReRank: { 
+                        onReRank: {
                             if let onReRankButtonTapped = onReRankButtonTapped {
                                 onReRankButtonTapped()
                             } else {
                                 reRankSong(currentSong: song)
                             }
-                        }
+                        },
+                        onShowAlbum: { showAlbumInfo = true }
                     )
                 } else if let error = viewModel.errorMessage {
                     Text(error).foregroundColor(.red)
@@ -60,11 +63,27 @@ struct SongInfoView: View {
                     }
                 }
             }
-            .onChange(of: rankingManager.isRanking) { 
+            .onChange(of: rankingManager.isRanking) {
                 if !rankingManager.isRanking, let reRankedSong = reRankedSong {
                     Task {
                         await viewModel.refreshSongInfo(from: reRankedSong)
                     }
+                }
+            }
+            .navigationDestination(isPresented: $showAlbumInfo) {
+                if let musicKitAlbum = viewModel.associatedAlbum {
+                    AlbumInfoView(
+                        album: Album(
+                            id: UUID(uuidString: musicKitAlbum.id.rawValue) ?? UUID(),
+                            title: musicKitAlbum.title,
+                            artist: musicKitAlbum.artistName,
+                            albumArt: musicKitAlbum.title, // Use title as albumArt
+                            artworkURL: musicKitAlbum.artwork?.url(width: 300, height: 300) // Pass URL? directly
+                        ),
+                        musicAPI: musicAPI
+                    )
+                    .environmentObject(musicAPI)
+                    .environmentObject(rankingManager)
                 }
             }
         }
@@ -87,11 +106,13 @@ struct SongInfoView: View {
             )
         } else {
             rankedSong = Song(
+                id: UUID(),
                 title: currentSong.title,
                 artist: currentSong.artist,
                 albumArt: currentSong.album,
                 sentiment: currentSong.sentiment ?? .fine,
-                artworkURL: currentSong.artworkURL
+                artworkURL: currentSong.artworkURL,
+                score: currentSong.score ?? 0.0
             )
         }
         reRankedSong = rankedSong
@@ -102,6 +123,7 @@ struct SongInfoView: View {
 struct SongInfoContentView: View {
     let song: UnifiedSong
     let onReRank: () -> Void
+    let onShowAlbum: () -> Void
     
     var body: some View {
         ScrollView {
@@ -122,7 +144,18 @@ struct SongInfoContentView: View {
                 }
                 .padding(.top, 5)
                 
-                // Padding at the bottom for now playing bar
+                Button(action: onShowAlbum) {
+                    Text("View Album")
+                        .fontWeight(.semibold)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color(.systemGray4))
+                        .foregroundColor(.primary)
+                        .cornerRadius(12)
+                        .shadow(radius: 3)
+                }
+                .padding(.top, 5)
+                
                 Color.clear
                     .frame(height: 80)
                     .listRowInsets(EdgeInsets())
@@ -136,6 +169,8 @@ struct SongInfoContentView: View {
             .ignoresSafeArea())
     }
 }
+
+// Other structs (ArtworkCard, StatsCard, MetadataCard, StatItem, MetadataItem) remain unchanged from your provided code
 
 struct ArtworkCard: View {
     let song: UnifiedSong
