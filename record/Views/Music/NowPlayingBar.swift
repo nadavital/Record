@@ -1,11 +1,9 @@
 import SwiftUI
 import MediaPlayer
 
-// First add a custom button style to prevent visual changes when pressed
 struct NoFeedbackButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            // No state-based modifications applied
     }
 }
 
@@ -27,77 +25,78 @@ struct NowPlayingBar: View {
     }
     
     var body: some View {
-        Button {
-            if (!isLoading && musicAPI.currentPlayingSong != nil) {
-                showSongInfo = true
-            }
-        } label: {
-            HStack(spacing: 12) {
-                // Album artwork
-                if isLoading {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.gray.opacity(0.3))
+        HStack(spacing: 12) {
+            // Song info and artwork (tappable area for SongInfoView)
+            Button {
+                if !isLoading, musicAPI.currentPlayingSong != nil {
+                    showSongInfo = true
+                }
+            } label: {
+                HStack(spacing: 12) {
+                    if isLoading {
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.gray.opacity(0.3))
+                            .frame(width: 40, height: 40)
+                    } else if let currentSong = musicAPI.currentPlayingSong {
+                        RemoteArtworkView(
+                            artworkURL: currentSong.artworkURL,
+                            placeholderText: currentSong.albumArt,
+                            cornerRadius: 8,
+                            size: CGSize(width: 40, height: 40)
+                        )
                         .frame(width: 40, height: 40)
-                } else if let currentSong = musicAPI.currentPlayingSong {
-                    RemoteArtworkView(
-                        artworkURL: currentSong.artworkURL,
-                        placeholderText: currentSong.albumArt,
-                        cornerRadius: 8,
-                        size: CGSize(width: 40, height: 40)
-                    )
-                    .frame(width: 40, height: 40)
-                } else {
-                    Color.clear.frame(width: 0, height: 0)
-                }
-                
-                // Song info
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(isLoading ? "Loading..." : (musicAPI.currentPlayingSong?.title ?? ""))
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .lineLimit(1)
-                        .redacted(reason: isLoading ? .placeholder : [])
-                    
-                    Text(isLoading ? "Please wait" : (musicAPI.currentPlayingSong?.artist ?? ""))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
-                        .redacted(reason: isLoading ? .placeholder : [])
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                
-                // Playback controls
-                HStack(spacing: 16) {
-                    Button(action: previousTrack) {
-                        Image(systemName: "backward.fill")
-                            .font(.system(size: 20))
-                            .opacity(isLoading ? 0.5 : 1)
+                    } else {
+                        Color.clear.frame(width: 0, height: 0)
                     }
-                    .buttonStyle(BorderlessButtonStyle())
-                    .disabled(isLoading)
                     
-                    Button(action: togglePlayPause) {
-                        Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                            .font(.system(size: 22))
-                            .opacity(isLoading ? 0.5 : 1)
-                            .animation(nil, value: isPlaying) // Disable animation for instant swap
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(isLoading ? "Loading..." : (musicAPI.currentPlayingSong?.title ?? ""))
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .lineLimit(1)
+                            .redacted(reason: isLoading ? .placeholder : [])
+                        
+                        Text(isLoading ? "Please wait" : (musicAPI.currentPlayingSong?.artist ?? ""))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                            .redacted(reason: isLoading ? .placeholder : [])
                     }
-                    .buttonStyle(BorderlessButtonStyle())
-                    .disabled(isLoading)
-                    
-                    Button(action: nextTrack) {
-                        Image(systemName: "forward.fill")
-                            .font(.system(size: 20))
-                            .opacity(isLoading ? 0.5 : 1)
-                    }
-                    .buttonStyle(BorderlessButtonStyle())
-                    .disabled(isLoading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
+            .buttonStyle(NoFeedbackButtonStyle())
+            
+            // Playback controls (separate, non-tappable for SongInfoView)
+            HStack(spacing: 16) {
+                Button(action: previousTrack) {
+                    Image(systemName: "backward.fill")
+                        .font(.system(size: 20))
+                        .opacity(isLoading ? 0.5 : 1)
+                }
+                .buttonStyle(BorderlessButtonStyle())
+                .disabled(isLoading)
+                
+                Button(action: togglePlayPause) {
+                    Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                        .font(.system(size: 22))
+                        .opacity(isLoading ? 0.5 : 1)
+                        .animation(nil, value: isPlaying)
+                }
+                .buttonStyle(BorderlessButtonStyle())
+                .disabled(isLoading)
+                
+                Button(action: nextTrack) {
+                    Image(systemName: "forward.fill")
+                        .font(.system(size: 20))
+                        .opacity(isLoading ? 0.5 : 1)
+                }
+                .buttonStyle(BorderlessButtonStyle())
+                .disabled(isLoading)
+            }
         }
-        .buttonStyle(NoFeedbackButtonStyle())
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
         .background {
             RoundedRectangle(cornerRadius: 12)
                 .fill(.ultraThinMaterial)
@@ -109,14 +108,13 @@ struct NowPlayingBar: View {
             if let currentSong = musicAPI.currentPlayingSong {
                 NavigationStack {
                     SongInfoView(
-                        mediaItem: MPMusicPlayerController.systemMusicPlayer.nowPlayingItem,
+                        mediaItem: musicPlayer.nowPlayingItem, // Added as per previous fix
                         rankedSong: currentSong,
                         musicAPI: musicAPI,
                         rankingManager: rankingManager,
                         onReRankButtonTapped: {
                             showSongInfo = false
                             currentlyDisplayedSong = currentSong
-                            
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                                 rankingManager.addNewSong(song: currentSong)
                             }
@@ -187,7 +185,6 @@ struct NowPlayingBar: View {
         ) { _ in
             self.updatePlaybackState()
         }
-        
         musicPlayer.beginGeneratingPlaybackNotifications()
     }
 }
