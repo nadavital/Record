@@ -31,6 +31,7 @@ struct TopSongsListView: View {
                 .frame(height: 80)
                 .listRowInsets(EdgeInsets())
         }
+        .scrollIndicators(.hidden)
         .navigationTitle("Top Songs")
         .navigationBarTitleDisplayMode(.inline)
     }

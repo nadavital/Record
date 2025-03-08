@@ -38,6 +38,7 @@ struct TopAlbumsListView: View {
         }
         .navigationTitle("Top Albums")
         .navigationBarTitleDisplayMode(.inline)
+        .scrollIndicators(.hidden)
     }
 }
 

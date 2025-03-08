@@ -41,6 +41,7 @@ struct RankedSongListView: View {
             }
             .listStyle(.plain)
             .animation(.easeOut(duration: 0.2), value: filteredSongs)
+            .scrollIndicators(.hidden)
         }
     }
 }
