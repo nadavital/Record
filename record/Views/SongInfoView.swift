@@ -2,10 +2,6 @@ import SwiftUI
 import MediaPlayer
 import MusicKit
 
-import SwiftUI
-import MediaPlayer
-import MusicKit
-
 struct SongInfoView: View {
     @StateObject private var viewModel: SongInfoViewModel
     @EnvironmentObject private var musicAPI: MusicAPIManager
@@ -61,7 +57,8 @@ struct SongInfoView: View {
                                 reRankSong(currentSong: song)
                             }
                         },
-                        onPlayPause: togglePlayPause
+                        onPlayPause: togglePlayPause,
+                        onShowAlbum: presentationStyle == .sheetFromAlbum ? nil : handleShowAlbum
                     )
                 } else if let error = viewModel.errorMessage {
                     Text(error).foregroundColor(.red)
@@ -156,7 +153,7 @@ struct SongInfoView: View {
             }
         }
     }
-
+    
     private func isCurrentSong() -> Bool {
         guard let currentSong = playerManager.currentSong,
               let unifiedSong = viewModel.unifiedSong else { return false }
@@ -170,12 +167,70 @@ struct SongInfoView: View {
         // Check if titles and artists match
         return currentTitle == songTitle && currentArtist == songArtist
     }
+    
+    private func handleShowAlbum() {
+        if let onShowAlbum = onShowAlbum {
+            // If provided with an external handler, use it (like from NowPlayingBar)
+            onShowAlbum()
+        } else if let song = viewModel.unifiedSong {
+            // Otherwise, create an Album object and navigate to it
+            albumToShow = Album(
+                id: UUID(),
+                title: song.album,
+                artist: song.artist,
+                albumArt: song.album,
+                artworkURL: song.artworkURL
+            )
+            navigateToAlbum = true
+        }
+    }
+}
+
+struct SongInfoContentView: View {
+    let song: UnifiedSong
+    let onReRank: () -> Void
+    let onPlayPause: () -> Void
+    let onShowAlbum: (() -> Void)? // Add this parameter
+    
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 20) {
+                ArtworkCard(
+                    song: song,
+                    onReRank: onReRank,
+                    onPlayPause: onPlayPause,
+                    onShowAlbum: onShowAlbum // Pass it down
+                )
+                StatsCard(song: song)
+                
+                // Only show MetadataCard if there's at least one metadata item
+                if hasMetadata(song) {
+                    MetadataCard(song: song)
+                }
+                
+                Color.clear
+                    .frame(height: 80)
+                    .listRowInsets(EdgeInsets())
+            }
+            .padding(.horizontal)
+            .padding(.bottom)
+            .scrollIndicators(.hidden)
+        }
+        .background(Color(uiColor: .systemBackground)
+            .opacity(0.8)
+            .ignoresSafeArea())
+    }
+    
+    private func hasMetadata(_ song: UnifiedSong) -> Bool {
+        return song.releaseDate != nil || song.genre != nil || song.lastPlayedDate != nil
+    }
 }
 
 struct ArtworkCard: View {
     let song: UnifiedSong
     let onReRank: () -> Void
     let onPlayPause: () -> Void
+    let onShowAlbum: (() -> Void)? // Add this parameter
     
     @EnvironmentObject private var playerManager: MusicPlayerManager
     
@@ -192,6 +247,12 @@ struct ArtworkCard: View {
                 .frame(width: 250, height: 250)
                 .cornerRadius(12)
                 .shadow(radius: 5)
+                // Add tap gesture for showing album if onShowAlbum exists
+                .onTapGesture {
+                    if let onShowAlbum = onShowAlbum {
+                        onShowAlbum()
+                    }
+                }
             } else {
                 Color.gray
                     .frame(width: 250, height: 250)
@@ -206,9 +267,19 @@ struct ArtworkCard: View {
                 Text(song.artist)
                     .font(.title3)
                     .foregroundColor(.secondary)
-                Text(song.album)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
+                
+                // Make album text tappable if onShowAlbum exists
+                Button(action: {
+                    if let onShowAlbum = onShowAlbum {
+                        onShowAlbum()
+                    }
+                }) {
+                    Text(song.album)
+                        .font(.subheadline)
+                        .foregroundColor(onShowAlbum != nil ? .accentColor : .secondary)
+                }
+                .buttonStyle(PlainButtonStyle())
+                .disabled(onShowAlbum == nil)
             }
             
             HStack(spacing: 20) {
@@ -242,40 +313,6 @@ struct ArtworkCard: View {
         guard let currentSong = playerManager.currentSong else { return false }
         return currentSong.title.lowercased() == song.title.lowercased() &&
                currentSong.artist.lowercased() == song.artist.lowercased()
-    }
-}
-
-struct SongInfoContentView: View {
-    let song: UnifiedSong
-    let onReRank: () -> Void
-    let onPlayPause: () -> Void
-    
-    var body: some View {
-        ScrollView {
-            VStack(spacing: 20) {
-                ArtworkCard(song: song, onReRank: onReRank, onPlayPause: onPlayPause)
-                StatsCard(song: song)
-                
-                // Only show MetadataCard if there’s at least one metadata item
-                if hasMetadata(song) {
-                    MetadataCard(song: song)
-                }
-                
-                Color.clear
-                    .frame(height: 80)
-                    .listRowInsets(EdgeInsets())
-            }
-            .padding(.horizontal)
-            .padding(.bottom)
-            .scrollIndicators(.hidden)
-        }
-        .background(Color(uiColor: .systemBackground)
-            .opacity(0.8)
-            .ignoresSafeArea())
-    }
-    
-    private func hasMetadata(_ song: UnifiedSong) -> Bool {
-        return song.releaseDate != nil || song.genre != nil || song.lastPlayedDate != nil
     }
 }
 
