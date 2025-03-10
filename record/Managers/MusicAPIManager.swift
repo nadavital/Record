@@ -428,51 +428,101 @@ class MusicAPIManager: ObservableObject {
     }
 
     func updateCurrentPlayingSong() {
-        guard let mediaItem = MPMusicPlayerController.systemMusicPlayer.nowPlayingItem else {
-            // No song is currently playing
-            currentPlayingSong = nil
-            return
-        }
-        
-        // Create Song object from MPMediaItem
-        let title = mediaItem.title ?? "Unknown Title"
-        let artist = mediaItem.artist ?? "Unknown Artist"
-        var artworkURL: URL? = nil
-        
-        // Try to get artwork
-        if let artwork = mediaItem.artwork {
-            let image = artwork.image(at: CGSize(width: 300, height: 300))
+            guard let mediaItem = MPMusicPlayerController.systemMusicPlayer.nowPlayingItem else {
+                logger.debug("No current playing item")
+                currentPlayingSong = nil
+                return
+            }
             
-            // Save artwork to temporary directory and create URL
-            if let image = image, let data = image.jpegData(compressionQuality: 0.8) {
-                let fileManager = FileManager.default
-                let tempURL = fileManager.temporaryDirectory.appendingPathComponent("\(mediaItem.persistentID).jpg")
-                try? data.write(to: tempURL)
-                artworkURL = tempURL
+            let title = mediaItem.title ?? "Unknown Title"
+            let artist = mediaItem.artist ?? "Unknown Artist"
+            
+            // Immediately set the song with no artwork to force placeholder
+            let tempSong = Song(
+                id: UUID(),
+                title: title,
+                artist: artist,
+                albumArt: mediaItem.albumTitle ?? "",
+                sentiment: .fine,
+                artworkURL: nil, // Clear artwork immediately
+                score: 0.0
+            )
+            currentPlayingSong = tempSong
+            
+            logger.debug("Updating current song: \(title) by \(artist)")
+            
+            Task {
+                var artworkURL: URL? = nil
+                
+                // Try to get artwork from MPMediaItem first
+                if let artwork = mediaItem.artwork {
+                    if let image = artwork.image(at: CGSize(width: 300, height: 300)),
+                       let data = image.jpegData(compressionQuality: 0.8) {
+                        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(mediaItem.persistentID).jpg")
+                        try? data.write(to: tempURL)
+                        artworkURL = tempURL
+                    }
+                }
+                
+                // Fallback to MusicKit catalog if no artwork is found
+                if artworkURL == nil {
+                    do {
+                        var request = MusicCatalogSearchRequest(term: "\(title) \(artist)", types: [MusicKit.Song.self])
+                        request.limit = 1
+                        let response = try await request.response()
+                        if let song = response.songs.first, let artwork = song.artwork {
+                            artworkURL = artwork.url(width: 300, height: 300)
+                        }
+                    } catch {
+                        logger.error("Failed to fetch artwork from catalog: \(error.localizedDescription)")
+                    }
+                }
+                
+                // Cache the artwork
+                if let url = artworkURL {
+                    artworkCache["\(title)-\(artist)".lowercased()] = url
+                }
+                
+                // Update the song with the fetched artwork
+                await MainActor.run {
+                    let finalSong = Song(
+                        id: UUID(),
+                        title: title,
+                        artist: artist,
+                        albumArt: mediaItem.albumTitle ?? "",
+                        sentiment: .fine,
+                        artworkURL: artworkURL,
+                        score: 0.0
+                    )
+                    
+                    if let rankingInfo = self.checkIfSongIsRanked(title: title, artist: artist), rankingInfo.isRanked,
+                       let index = self.rankingManager?.rankedSongs.firstIndex(where: {
+                           $0.title.lowercased() == title.lowercased() && $0.artist.lowercased() == artist.lowercased()
+                       }) {
+                        self.currentPlayingSong = self.rankingManager!.rankedSongs[index]
+                    } else {
+                        self.currentPlayingSong = finalSong
+                    }
+                }
             }
         }
-        
-        // Create song object
+
+    private func updateCurrentPlayingSongWithArtwork(title: String, artist: String, artworkURL: URL?) {
         let song = Song(
             id: UUID(),
             title: title,
             artist: artist,
-            albumArt: mediaItem.albumTitle ?? "",
+            albumArt: MPMusicPlayerController.systemMusicPlayer.nowPlayingItem?.albumTitle ?? "",
             sentiment: .fine,
             artworkURL: artworkURL,
             score: 0.0
         )
         
-        // Check if song is already ranked
-        if let rankingInfo = checkIfSongIsRanked(title: title, artist: artist),
-           rankingInfo.isRanked,
+        if let rankingInfo = checkIfSongIsRanked(title: title, artist: artist), rankingInfo.isRanked,
            let index = rankingManager?.rankedSongs.firstIndex(where: {
-               $0.title.lowercased() == title.lowercased() &&
-               $0.artist.lowercased() == artist.lowercased()
+               $0.title.lowercased() == title.lowercased() && $0.artist.lowercased() == artist.lowercased()
            }) {
-            // Update with ranked info
-            let rankedSong = rankingManager!.rankedSongs[index]
-            currentPlayingSong = rankedSong
+            currentPlayingSong = rankingManager!.rankedSongs[index]
         } else {
             currentPlayingSong = song
         }
