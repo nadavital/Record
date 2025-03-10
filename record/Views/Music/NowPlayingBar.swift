@@ -10,14 +10,12 @@ struct NoFeedbackButtonStyle: ButtonStyle {
 struct NowPlayingBar: View {
     @EnvironmentObject private var musicAPI: MusicAPIManager
     @EnvironmentObject private var rankingManager: MusicRankingManager
-    @State private var isPlaying: Bool = false
+    @EnvironmentObject private var playerManager: MusicPlayerManager
     @State private var currentlyDisplayedSong: Song? = nil
     
     var isLoading: Bool
     
     @Environment(\.colorScheme) var colorScheme
-    
-    private let musicPlayer = MPMusicPlayerController.systemMusicPlayer
     
     init(isLoading: Bool = false) {
         self.isLoading = isLoading
@@ -29,7 +27,7 @@ struct NowPlayingBar: View {
                 RoundedRectangle(cornerRadius: 8)
                     .fill(Color.gray.opacity(0.3))
                     .frame(width: 40, height: 40)
-            } else if let currentSong = musicAPI.currentPlayingSong {
+            } else if let currentSong = playerManager.currentSong {
                 RemoteArtworkView(
                     artworkURL: currentSong.artworkURL,
                     placeholderText: currentSong.albumArt,
@@ -42,13 +40,13 @@ struct NowPlayingBar: View {
             }
             
             VStack(alignment: .leading, spacing: 2) {
-                Text(isLoading ? "Loading..." : (musicAPI.currentPlayingSong?.title ?? ""))
+                Text(isLoading ? "Loading..." : (playerManager.currentSong?.title ?? ""))
                     .font(.subheadline)
                     .fontWeight(.medium)
                     .lineLimit(1)
                     .redacted(reason: isLoading ? .placeholder : [])
                 
-                Text(isLoading ? "Please wait" : (musicAPI.currentPlayingSong?.artist ?? ""))
+                Text(isLoading ? "Please wait" : (playerManager.currentSong?.artist ?? ""))
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .lineLimit(1)
@@ -57,7 +55,7 @@ struct NowPlayingBar: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             
             HStack(spacing: 16) {
-                Button(action: previousTrack) {
+                Button(action: playerManager.skipToPrevious) {
                     Image(systemName: "backward.fill")
                         .font(.system(size: 20))
                         .opacity(isLoading ? 0.5 : 1)
@@ -65,16 +63,16 @@ struct NowPlayingBar: View {
                 .buttonStyle(BorderlessButtonStyle())
                 .disabled(isLoading)
                 
-                Button(action: togglePlayPause) {
-                    Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                Button(action: playerManager.togglePlayPause) {
+                    Image(systemName: playerManager.isPlaying ? "pause.fill" : "play.fill")
                         .font(.system(size: 22))
                         .opacity(isLoading ? 0.5 : 1)
-                        .animation(nil, value: isPlaying)
+                        .animation(nil, value: playerManager.isPlaying)
                 }
                 .buttonStyle(BorderlessButtonStyle())
                 .disabled(isLoading)
                 
-                Button(action: nextTrack) {
+                Button(action: playerManager.skipToNext) {
                     Image(systemName: "forward.fill")
                         .font(.system(size: 20))
                         .opacity(isLoading ? 0.5 : 1)
@@ -97,53 +95,5 @@ struct NowPlayingBar: View {
                 currentlyDisplayedSong = nil
             }
         }
-        .onAppear {
-            if !isLoading {
-                updatePlaybackState()
-                setupPlaybackObserver()
-            }
-        }
-        .onChange(of: musicAPI.currentPlayingSong) {
-            updatePlaybackState()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .MPMusicPlayerControllerPlaybackStateDidChange)) { _ in
-            updatePlaybackState()
-        }
-    }
-    
-    private func togglePlayPause() {
-        if musicPlayer.playbackState == .playing {
-            musicPlayer.pause()
-            isPlaying = false
-        } else {
-            musicPlayer.play()
-            isPlaying = true
-        }
-    }
-    
-    private func nextTrack() {
-        musicPlayer.skipToNextItem()
-        updatePlaybackState()
-    }
-    
-    private func previousTrack() {
-        musicPlayer.skipToPreviousItem()
-        updatePlaybackState()
-    }
-    
-    private func updatePlaybackState() {
-        isPlaying = musicPlayer.playbackState == .playing
-    }
-    
-    private func setupPlaybackObserver() {
-        NotificationCenter.default.addObserver(
-            forName: .MPMusicPlayerControllerPlaybackStateDidChange,
-            object: musicPlayer,
-            queue: .main
-        ) { _ in
-            self.updatePlaybackState()
-        }
-        
-        musicPlayer.beginGeneratingPlaybackNotifications()
     }
 }

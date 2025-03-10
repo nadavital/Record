@@ -13,7 +13,8 @@ import Firebase
 struct recordApp: App {
     @StateObject private var userProfileManager = UserProfileManager()
     @StateObject private var musicRankingManager = MusicRankingManager()
-    @StateObject private var musicAPIManager = MusicAPIManager() // Add this
+    @StateObject private var musicAPIManager = MusicAPIManager()
+    @StateObject private var playerManager = MusicPlayerManager()
     @StateObject private var authManager = AuthManager.shared
     @State private var musicAuthorizationStatus = MusicAuthorization.Status.notDetermined
     @State private var showUsernamePrompt = false
@@ -33,7 +34,8 @@ struct recordApp: App {
                         .environmentObject(userProfileManager)
                         .environmentObject(musicRankingManager)
                         .environmentObject(musicAPIManager)
-                        .environmentObject(authManager) 
+                        .environmentObject(authManager)
+                        .environmentObject(playerManager)
                         .onAppear {
                             checkMusicAuthorization()
                             checkIfUsernameNeeded()

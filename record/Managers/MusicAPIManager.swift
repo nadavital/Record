@@ -14,13 +14,12 @@ class MusicAPIManager: ObservableObject {
     @Published var recentAlbums: [MusicItem] = []
     @Published var recentArtists: [MusicItem] = []
     @Published var listeningHistory: [ListeningHistoryItem] = []
-    @Published var currentPlayingSong: Song? = nil
+    @Published var currentPlayingSong: Song? = nil // Still maintained for compatibility
     
     private var artworkCache: [String: URL] = [:]
     private var activeTask: Task<Void, Never>?
     
     private let logger = Logger(subsystem: "com.Nadav.record", category: "MusicAPIManager")
-    
     private var rankingManager: MusicRankingManager?
     
     init() {
@@ -338,8 +337,13 @@ class MusicAPIManager: ObservableObject {
         }
     }
     
+    func setArtworkURL(_ url: URL, for title: String, artist: String) {
+            let key = "\(title)-\(artist)".lowercased()
+            artworkCache[key] = url
+    }
+    
     func getArtworkURL(for id: String) -> URL? {
-        return artworkCache[id]
+            return artworkCache[id]
     }
     
     func convertToSong(_ item: MusicItem) -> Song {
@@ -407,126 +411,6 @@ class MusicAPIManager: ObservableObject {
         
         return nil
     }
-    
-    func setupNowPlayingMonitoring() {
-        // Set up notification observer for music player changes
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleMusicPlayerNotification),
-            name: .MPMusicPlayerControllerNowPlayingItemDidChange,
-            object: MPMusicPlayerController.systemMusicPlayer
-        )
-        
-        MPMusicPlayerController.systemMusicPlayer.beginGeneratingPlaybackNotifications()
-        
-        // Initial check for currently playing song
-        updateCurrentPlayingSong()
-    }
-
-    @objc private func handleMusicPlayerNotification() {
-        updateCurrentPlayingSong()
-    }
-
-    func updateCurrentPlayingSong() {
-            guard let mediaItem = MPMusicPlayerController.systemMusicPlayer.nowPlayingItem else {
-                logger.debug("No current playing item")
-                currentPlayingSong = nil
-                return
-            }
-            
-            let title = mediaItem.title ?? "Unknown Title"
-            let artist = mediaItem.artist ?? "Unknown Artist"
-            
-            // Immediately set the song with no artwork to force placeholder
-            let tempSong = Song(
-                id: UUID(),
-                title: title,
-                artist: artist,
-                albumArt: mediaItem.albumTitle ?? "",
-                sentiment: .fine,
-                artworkURL: nil, // Clear artwork immediately
-                score: 0.0
-            )
-            currentPlayingSong = tempSong
-            
-            logger.debug("Updating current song: \(title) by \(artist)")
-            
-            Task {
-                var artworkURL: URL? = nil
-                
-                // Try to get artwork from MPMediaItem first
-                if let artwork = mediaItem.artwork {
-                    if let image = artwork.image(at: CGSize(width: 300, height: 300)),
-                       let data = image.jpegData(compressionQuality: 0.8) {
-                        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(mediaItem.persistentID).jpg")
-                        try? data.write(to: tempURL)
-                        artworkURL = tempURL
-                    }
-                }
-                
-                // Fallback to MusicKit catalog if no artwork is found
-                if artworkURL == nil {
-                    do {
-                        var request = MusicCatalogSearchRequest(term: "\(title) \(artist)", types: [MusicKit.Song.self])
-                        request.limit = 1
-                        let response = try await request.response()
-                        if let song = response.songs.first, let artwork = song.artwork {
-                            artworkURL = artwork.url(width: 300, height: 300)
-                        }
-                    } catch {
-                        logger.error("Failed to fetch artwork from catalog: \(error.localizedDescription)")
-                    }
-                }
-                
-                // Cache the artwork
-                if let url = artworkURL {
-                    artworkCache["\(title)-\(artist)".lowercased()] = url
-                }
-                
-                // Update the song with the fetched artwork
-                await MainActor.run {
-                    let finalSong = Song(
-                        id: UUID(),
-                        title: title,
-                        artist: artist,
-                        albumArt: mediaItem.albumTitle ?? "",
-                        sentiment: .fine,
-                        artworkURL: artworkURL,
-                        score: 0.0
-                    )
-                    
-                    if let rankingInfo = self.checkIfSongIsRanked(title: title, artist: artist), rankingInfo.isRanked,
-                       let index = self.rankingManager?.rankedSongs.firstIndex(where: {
-                           $0.title.lowercased() == title.lowercased() && $0.artist.lowercased() == artist.lowercased()
-                       }) {
-                        self.currentPlayingSong = self.rankingManager!.rankedSongs[index]
-                    } else {
-                        self.currentPlayingSong = finalSong
-                    }
-                }
-            }
-        }
-
-    private func updateCurrentPlayingSongWithArtwork(title: String, artist: String, artworkURL: URL?) {
-        let song = Song(
-            id: UUID(),
-            title: title,
-            artist: artist,
-            albumArt: MPMusicPlayerController.systemMusicPlayer.nowPlayingItem?.albumTitle ?? "",
-            sentiment: .fine,
-            artworkURL: artworkURL,
-            score: 0.0
-        )
-        
-        if let rankingInfo = checkIfSongIsRanked(title: title, artist: artist), rankingInfo.isRanked,
-           let index = rankingManager?.rankedSongs.firstIndex(where: {
-               $0.title.lowercased() == title.lowercased() && $0.artist.lowercased() == artist.lowercased()
-           }) {
-            currentPlayingSong = rankingManager!.rankedSongs[index]
-        } else {
-            currentPlayingSong = song
-        }
-    }
 
     // For testing purposes - set a sample song if nothing is playing
     func setDemoCurrentSong() {
@@ -558,5 +442,10 @@ class MusicAPIManager: ObservableObject {
     }
 }
 
-
-
+extension URL {
+    func apply(_ block: (Self, inout Self) throws -> Void) rethrows -> Self {
+        var copy = self
+        try block(self, &copy)
+        return copy
+    }
+}

@@ -20,6 +20,7 @@ struct RemoteArtworkView: View {
     var size: CGSize = CGSize(width: 50, height: 50)
     
     @State private var imageData: Data? = nil
+    @State private var currentURLString: String = ""
     @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
@@ -44,18 +45,32 @@ struct RemoteArtworkView: View {
         }
         .shadow(color: Color(.sRGBLinear, white: 0, opacity: 0.1), radius: 2)
         .onChange(of: artworkURL) {
-            print("Artwork URL changed to: \(artworkURL?.absoluteString ?? "nil")")
-            imageData = nil // Reset to placeholder immediately
+            let newURLString = artworkURL?.absoluteString ?? ""
+            // Only reset image if URL actually changed
+            if newURLString != currentURLString {
+                if imageData != nil {
+                    print("URL changed from \(currentURLString) to \(newURLString)")
+                }
+                currentURLString = newURLString
+                
+                if newURLString.isEmpty {
+                    imageData = nil // Clear image for nil URL
+                } else if let url = artworkURL {
+                    Task {
+                        await loadImage(from: url)
+                    }
+                }
+            }
+        }
+        .onAppear {
+            // Set initial URL string
+            currentURLString = artworkURL?.absoluteString ?? ""
+            
+            // Initial load on view appearance
             if let url = artworkURL {
                 Task {
                     await loadImage(from: url)
                 }
-            }
-        }
-        .task(id: artworkURL) {
-            // Initial load on view appearance
-            if let url = artworkURL {
-                await loadImage(from: url)
             }
         }
     }
@@ -83,13 +98,13 @@ struct RemoteArtworkView: View {
     
     // Load the image from URL or cache
     private func loadImage(from url: URL) async {
-        print("Attempting to load image from: \(url)")
-        
         // Check the cache first
         if let cachedData = await ImageCache.shared.getImage(for: url) {
-            print("Found cached image for: \(url)")
-            await MainActor.run {
-                self.imageData = cachedData
+            // Only update if this is still the current URL
+            if url.absoluteString == currentURLString {
+                await MainActor.run {
+                    self.imageData = cachedData
+                }
             }
             return
         }
@@ -97,10 +112,13 @@ struct RemoteArtworkView: View {
         // Load from network
         do {
             let (data, _) = try await URLSession.shared.data(from: url)
-            print("Successfully fetched image from: \(url)")
             await ImageCache.shared.setImage(data, for: url)
-            await MainActor.run {
-                self.imageData = data
+            
+            // Only update if this is still the current URL
+            if url.absoluteString == currentURLString {
+                await MainActor.run {
+                    self.imageData = data
+                }
             }
         } catch {
             print("Error loading image from \(url): \(error)")

@@ -5,6 +5,7 @@ struct ContentView: View {
     @EnvironmentObject private var musicAPI: MusicAPIManager
     @EnvironmentObject private var rankingManager: MusicRankingManager
     @EnvironmentObject private var authManager: AuthManager
+    @EnvironmentObject private var playerManager: MusicPlayerManager
     @State private var statsLoadedInitially = false
     @State private var nowPlayingBarVisible = false
     @State private var isLoading = true
@@ -13,7 +14,6 @@ struct ContentView: View {
     var body: some View {
         ZStack(alignment: .bottom) {
             TabView(selection: $selectedTab) {
-                // Keep the existing views with their own NavigationStacks
                 RankingView()
                     .tabItem {
                         Image(systemName: "music.note.list")
@@ -36,20 +36,17 @@ struct ContentView: View {
                     .tag(2)
             }
             
-            // Position the now playing bar above the tab bar with padding
             VStack {
                 NowPlayingBarContainer(isLoading: isLoading, showAlbumInfo: $showAlbumInfo)
                     .opacity(nowPlayingBarVisible || isLoading ? 1 : 0)
                     .animation(.easeInOut(duration: 0.3), value: nowPlayingBarVisible)
                     .animation(.easeInOut(duration: 0.3), value: isLoading)
                 
-                // Add space for the tab bar
                 Color.clear.frame(height: 49)
             }
             .background(Color.clear)
-            .zIndex(1) // Lower zIndex so overlays appear above it
+            .zIndex(1)
             
-            // Ranking overlays (higher zIndex)
             if rankingManager.showSentimentPicker {
                 Color(.systemBackground)
                     .opacity(0.95)
@@ -74,19 +71,16 @@ struct ContentView: View {
                 await musicAPI.checkMusicAuthorizationStatus()
                 await musicAPI.fetchListeningHistory()
                 
-                // Set up now playing monitoring
-                musicAPI.setupNowPlayingMonitoring()
+                // No need for musicAPI.setupNowPlayingMonitoring(); handled by MusicPlayerManager
                 
-                // For development: set a demo song if nothing is playing
                 #if DEBUG
                 musicAPI.setDemoCurrentSong()
                 #endif
                 
-                // After a short delay, show the now playing bar and hide loading state
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     withAnimation {
                         isLoading = false
-                        nowPlayingBarVisible = musicAPI.currentPlayingSong != nil
+                        nowPlayingBarVisible = playerManager.currentSong != nil // Use playerManager
                     }
                 }
                 
@@ -94,21 +88,19 @@ struct ContentView: View {
             }
         }
         .onChange(of: rankingManager.isRanking) {
-            // If ranking ends while on Stats tab, switch back to Stats if needed
             if !rankingManager.isRanking && selectedTab == 1 {
-                // No explicit dismissal needed here; rely on NavigationStack
+                // No action needed
             }
         }
-        .onChange(of: musicAPI.currentPlayingSong) {
-            // Only update visibility if we're not loading
+        .onChange(of: playerManager.currentSong) { // Changed to playerManager
             if !isLoading {
                 withAnimation(.spring()) {
-                    nowPlayingBarVisible = musicAPI.currentPlayingSong != nil
+                    nowPlayingBarVisible = playerManager.currentSong != nil
                 }
             }
         }
         .sheet(isPresented: $showAlbumInfo) {
-            if let song = musicAPI.currentPlayingSong {
+            if let song = playerManager.currentSong { // Changed to playerManager
                 NavigationStack {
                     AlbumInfoView(
                         album: Album(
@@ -122,6 +114,7 @@ struct ContentView: View {
                     )
                     .environmentObject(musicAPI)
                     .environmentObject(rankingManager)
+                    .environmentObject(playerManager) // Add playerManager
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) {
                             Button("Done") {
@@ -137,7 +130,6 @@ struct ContentView: View {
     }
 }
 
-// A container for the NowPlayingBar that handles the album navigation
 struct NowPlayingBarContainer: View {
     var isLoading: Bool
     @Binding var showAlbumInfo: Bool
@@ -145,16 +137,17 @@ struct NowPlayingBarContainer: View {
     @State private var currentlyDisplayedSong: Song? = nil
     @EnvironmentObject private var musicAPI: MusicAPIManager
     @EnvironmentObject private var rankingManager: MusicRankingManager
+    @EnvironmentObject private var playerManager: MusicPlayerManager
     
     var body: some View {
         NowPlayingBar(isLoading: isLoading)
             .onTapGesture {
-                if !isLoading && musicAPI.currentPlayingSong != nil {
+                if !isLoading && playerManager.currentSong != nil {
                     showSongInfo = true
                 }
             }
             .sheet(isPresented: $showSongInfo) {
-                if let currentSong = musicAPI.currentPlayingSong {
+                if let currentSong = playerManager.currentSong {
                     NavigationStack {
                         SongInfoView(
                             rankedSong: currentSong,
@@ -169,14 +162,13 @@ struct NowPlayingBarContainer: View {
                                 }
                             },
                             onShowAlbum: {
-                                // First dismiss the song info sheet
                                 showSongInfo = false
-                                // Then show the album with a slight delay
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                                     showAlbumInfo = true
                                 }
                             }
                         )
+                        .environmentObject(playerManager)
                         .navigationBarTitleDisplayMode(.inline)
                         .toolbar {
                             ToolbarItem(placement: .cancellationAction) {
@@ -199,4 +191,5 @@ struct NowPlayingBarContainer: View {
         .environmentObject(MusicRankingManager())
         .environmentObject(MusicAPIManager())
         .environmentObject(AuthManager.shared)
+        .environmentObject(MusicPlayerManager())
 }
