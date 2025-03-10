@@ -133,6 +133,8 @@ struct SongInfoView: View {
     
     private func reRankSong(currentSong: UnifiedSong) {
         let rankedSong: Song
+        let albumTitle = currentSong.album
+        
         if let existingSong = rankingManager.rankedSongs.first(where: {
             $0.title.lowercased() == currentSong.title.lowercased() &&
             $0.artist.lowercased() == currentSong.artist.lowercased()
@@ -141,7 +143,7 @@ struct SongInfoView: View {
                 id: existingSong.id,
                 title: currentSong.title,
                 artist: currentSong.artist,
-                albumArt: currentSong.album,
+                albumArt: albumTitle,
                 sentiment: currentSong.sentiment ?? .fine,
                 artworkURL: currentSong.artworkURL ?? existingSong.artworkURL,
                 score: currentSong.score ?? 0.0

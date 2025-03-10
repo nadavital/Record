@@ -89,14 +89,15 @@ class SongInfoViewModel: ObservableObject {
     }
     
     private func createUnifiedSong(from song: Song) async -> (UnifiedSong, MusicKit.Album?) {
-        // Fetch ranked song
+        await MainActor.run { isLoading = true }
+        
         let rankedSong = rankingManager.rankedSongs.first { ranked in
             ranked.title.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == song.title.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() &&
             ranked.artist.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == song.artist.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         }
         
-        // Fetch play count from local library
         var playCount = 0
+        var lastPlayedDate: Date?
         let query = MPMediaQuery.songs()
         let titlePredicate = MPMediaPropertyPredicate(
             value: song.title,
@@ -112,42 +113,47 @@ class SongInfoViewModel: ObservableObject {
         query.addFilterPredicate(artistPredicate)
         if let mediaItem = query.items?.first {
             playCount = mediaItem.playCount
+            lastPlayedDate = mediaItem.lastPlayedDate
         }
         
-        // Fetch MusicKit track and album for additional metadata
         var musicKitAlbum: MusicKit.Album?
         var releaseDate: Date?
         var genre: String?
-        do {
-            var request = MusicCatalogSearchRequest(term: "\(song.title) \(song.artist)", types: [MusicKit.Song.self])
-            request.limit = 1
-            let response = try await request.response()
-            if let track = response.songs.first {
-                let trackWithAlbum = try await track.with([.albums])
-                musicKitAlbum = trackWithAlbum.albums?.first
-                releaseDate = musicKitAlbum?.releaseDate
-                genre = musicKitAlbum?.genres?.first?.name
+        var correctedAlbumTitle = song.albumArt
+        
+        // If albumArt looks like junk, fetch from MusicKit
+        if song.albumArt.count < 3 || song.albumArt.rangeOfCharacter(from: CharacterSet.alphanumerics.inverted) == nil {
+            do {
+                var request = MusicCatalogSearchRequest(term: "\(song.title) \(song.artist)", types: [MusicKit.Song.self])
+                request.limit = 1
+                let response = try await request.response()
+                if let track = response.songs.first {
+                    let trackWithAlbum = try await track.with([.albums])
+                    musicKitAlbum = trackWithAlbum.albums?.first
+                    correctedAlbumTitle = musicKitAlbum?.title ?? song.albumArt
+                    releaseDate = musicKitAlbum?.releaseDate
+                    genre = musicKitAlbum?.genres?.first?.name
+                }
+            } catch {
+                print("Failed to fetch MusicKit album: \(error)")
             }
-        } catch {
-            print("Failed to fetch MusicKit album: \(error)")
         }
         
-        return (
-            UnifiedSong(
-                title: song.title,
-                artist: song.artist,
-                album: song.albumArt,
-                playCount: playCount,
-                lastPlayedDate: nil, // Could fetch from MPMediaItem if needed
-                releaseDate: releaseDate,
-                genre: genre,
-                artworkURL: song.artworkURL ?? musicKitAlbum?.artwork?.url(width: 300, height: 300),
-                isRanked: rankedSong != nil,
-                rank: rankedSong != nil ? (rankingManager.rankedSongs.firstIndex(of: rankedSong!)! + 1) : nil,
-                score: rankedSong?.score,
-                sentiment: rankedSong?.sentiment
-            ),
-            musicKitAlbum
+        let unifiedSong = UnifiedSong(
+            title: song.title,
+            artist: song.artist,
+            album: correctedAlbumTitle,
+            playCount: playCount,
+            lastPlayedDate: lastPlayedDate,
+            releaseDate: releaseDate,
+            genre: genre,
+            artworkURL: song.artworkURL ?? musicKitAlbum?.artwork?.url(width: 300, height: 300),
+            isRanked: rankedSong != nil,
+            rank: rankedSong != nil ? (rankingManager.rankedSongs.firstIndex(of: rankedSong!)! + 1) : nil,
+            score: rankedSong?.score,
+            sentiment: rankedSong?.sentiment
         )
+        print("UnifiedSong from Song: title=\(song.title), album=\(correctedAlbumTitle)")
+        return (unifiedSong, musicKitAlbum)
     }
 }

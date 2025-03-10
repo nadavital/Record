@@ -8,6 +8,7 @@
 import Foundation
 import SwiftUI
 import Combine
+import MusicKit
 
 class MusicRankingManager: ObservableObject {
     @Published var rankedSongs: [Song] = []
@@ -35,6 +36,7 @@ class MusicRankingManager: ObservableObject {
         rankedSongs = PersistenceManager.shared.loadRankedSongs()
         updateScores()
         setupDataChangeSubscription() // Set up subscription for data changes
+        Task { await fixJunkAlbumTitles() }
     }
     
     // Check if a song is already ranked by title and artist
@@ -558,6 +560,36 @@ class MusicRankingManager: ObservableObject {
         if (!savedSongs.isEmpty && savedSongs != rankedSongs) {
             rankedSongs = savedSongs
             updateScores()
+        }
+    }
+    
+    private func fixJunkAlbumTitles() async {
+        for (index, song) in rankedSongs.enumerated() {
+            if song.albumArt.count < 3 || song.albumArt.rangeOfCharacter(from: CharacterSet.alphanumerics.inverted) == nil {
+                do {
+                    var request = MusicCatalogSearchRequest(term: "\(song.title) \(song.artist)", types: [MusicKit.Song.self])
+                    request.limit = 1
+                    let response = try await request.response()
+                    if let track = response.songs.first, let album = try await track.with([.albums]).albums?.first {
+                        let updatedSong = Song(
+                            id: song.id,
+                            title: song.title,
+                            artist: song.artist,
+                            albumArt: album.title,
+                            sentiment: song.sentiment,
+                            artworkURL: song.artworkURL ?? album.artwork?.url(width: 300, height: 300),
+                            score: song.score
+                        )
+                        await MainActor.run {
+                            rankedSongs[index] = updatedSong
+                            PersistenceManager.shared.saveRankedSongs(rankedSongs)
+                        }
+                        print("Fixed junk albumArt: \(song.albumArt) -> \(album.title)")
+                    }
+                } catch {
+                    print("Failed to fix junk albumArt for \(song.title): \(error)")
+                }
+            }
         }
     }
 }
