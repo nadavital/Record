@@ -65,17 +65,17 @@ struct ProfileHeader: View {
                 Text(isEditing ? "Done" : "Edit Profile")
                     .font(.system(.body, design: .rounded))
                     .fontWeight(.medium)
-                    .foregroundColor(isEditing ? .white : .primary)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(isEditing ? Color.accentColor : Color.clear)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .strokeBorder(isEditing ? Color.clear : Color(.systemGray4), lineWidth: 1)
-                            )
-                    )
+                    .background{
+                        if isEditing {
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(.ultraThinMaterial)
+                        } else {
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.accentColor)
+                        }
+                    }
             }
             .buttonStyle(PlainButtonStyle())
             .padding(.horizontal, 32)
@@ -91,6 +91,7 @@ struct ProfileHeader: View {
 }
 
 #Preview {
-    ProfileHeader(isEditing: .constant(false))
+    @Previewable @State var isEditing = false
+    ProfileHeader(isEditing: $isEditing)
         .environmentObject(UserProfileManager())
 }
