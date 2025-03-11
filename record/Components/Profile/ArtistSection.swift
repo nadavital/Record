@@ -11,24 +11,12 @@ struct ArtistSection: View {
     @EnvironmentObject var profileManager: UserProfileManager
     @Binding var isEditingArtists: Bool
     @Binding var showArtistPicker: Bool
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Header with edit button
-            HStack {
-                Text("Favorite Artists")
-                    .font(.headline)
-                
-                Spacer()
-                
-                Button {
-                    isEditingArtists.toggle()
-                } label: {
-                    Text(isEditingArtists ? "Done" : "Edit")
-                        .font(.subheadline)
-                        .foregroundColor(.accentColor)
-                }
-            }
-            .padding(.horizontal, 4)
+            Text("Favorite Artists")
+                .font(.headline)
+                .padding(.horizontal, 4)
             
             if profileManager.pinnedArtists.isEmpty {
                 Text("Add favorite artists to display here")
@@ -38,20 +26,8 @@ struct ArtistSection: View {
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 16)
                 
-                if !isEditingArtists {
-                    Button {
-                        isEditingArtists = true
-                    } label: {
-                        Text("Add Artists")
-                            .fontWeight(.medium)
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 8)
-                            .background(Color.accentColor)
-                            .cornerRadius(20)
-                    }
+                AddArtistButton(showArtistPicker: $showArtistPicker)
                     .frame(maxWidth: .infinity, alignment: .center)
-                }
             } else {
                 // Artist scroll view with horizontal items
                 ScrollView(.horizontal, showsIndicators: false) {

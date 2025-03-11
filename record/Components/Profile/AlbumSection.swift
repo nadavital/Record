@@ -11,24 +11,12 @@ struct AlbumSection: View {
     @EnvironmentObject var profileManager: UserProfileManager
     @Binding var isEditingAlbums: Bool
     @Binding var showAlbumPicker: Bool
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Header with edit button
-            HStack {
-                Text("Favorite Albums")
-                    .font(.headline)
-                
-                Spacer()
-                
-                Button {
-                    isEditingAlbums.toggle()
-                } label: {
-                    Text(isEditingAlbums ? "Done" : "Edit")
-                        .font(.subheadline)
-                        .foregroundColor(.accentColor)
-                }
-            }
-            .padding(.horizontal, 4)
+            Text("Favorite Albums")
+                .font(.headline)
+                .padding(.horizontal, 4)
             
             // Albums scroll view
             ScrollView(.horizontal, showsIndicators: false) {

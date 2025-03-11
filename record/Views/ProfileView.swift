@@ -11,31 +11,28 @@ struct ProfileView: View {
     @EnvironmentObject var profileManager: UserProfileManager
     @EnvironmentObject var rankingManager: MusicRankingManager
     @EnvironmentObject var authManager: AuthManager
-    @State private var isEditingAlbums = false
-    @State private var isEditingArtists = false
+    @State private var isEditing = false
     @State private var showAlbumPicker = false
     @State private var showArtistPicker = false
     @State private var showSettings = false
-    @State private var editingBio = false
-    @State private var tempBio = ""
     
     var body: some View {
         NavigationStack {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 20) {
                     // Profile header
-                    ProfileHeader()
-                        .padding(.horizontal) // Add horizontal padding to match other sections
+                    ProfileHeader(isEditing: $isEditing)
+                        .padding(.horizontal)
                     
                     // Album section
                     AlbumSection(
-                        isEditingAlbums: $isEditingAlbums,
+                        isEditingAlbums: .constant(isEditing),
                         showAlbumPicker: $showAlbumPicker)
                         .padding(.horizontal)
                     
                     // Top artists section
                     ArtistSection(
-                        isEditingArtists: $isEditingArtists,
+                        isEditingArtists: .constant(isEditing),
                         showArtistPicker: $showArtistPicker)
                         .padding(.horizontal)
                     

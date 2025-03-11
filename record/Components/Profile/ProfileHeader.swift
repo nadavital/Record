@@ -9,6 +9,9 @@ import SwiftUI
     
 struct ProfileHeader: View {
     @EnvironmentObject var profileManager: UserProfileManager
+    @State private var tempBio: String = ""
+    @Binding var isEditing: Bool
+    
     var body: some View {
         VStack(spacing: 16) {
             // Avatar
@@ -28,11 +31,55 @@ struct ProfileHeader: View {
                 .fontWeight(.bold)
             
             // Bio
-            Text(profileManager.bio.isEmpty ? "Add bio in settings" : profileManager.bio)
+            if isEditing {
+                TextEditor(text: Binding(
+                    get: { tempBio },
+                    set: { newValue in
+                        tempBio = newValue
+                        profileManager.bio = newValue
+                    }
+                ))
                 .font(.subheadline)
-                .foregroundColor(profileManager.bio.isEmpty ? .secondary : .primary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
+                .frame(height: 80)
+                .padding(8)
+                .background(Color(.systemBackground))
+                .cornerRadius(8)
+                .padding(.horizontal)
+                .onAppear {
+                    tempBio = profileManager.bio
+                }
+            } else {
+                Text(profileManager.bio.isEmpty ? "Tap edit to add bio" : profileManager.bio)
+                    .font(.subheadline)
+                    .foregroundColor(profileManager.bio.isEmpty ? .secondary : .primary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+            }
+            
+            // Edit Profile Button
+            Button {
+                withAnimation {
+                    isEditing.toggle()
+                }
+            } label: {
+                Text(isEditing ? "Done" : "Edit Profile")
+                    .font(.system(.body, design: .rounded))
+                    .fontWeight(.medium)
+                    .foregroundColor(isEditing ? .white : .primary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(isEditing ? Color.accentColor : Color.clear)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .strokeBorder(isEditing ? Color.clear : Color(.systemGray4), lineWidth: 1)
+                            )
+                    )
+            }
+            .buttonStyle(PlainButtonStyle())
+            .padding(.horizontal, 32)
+            .padding(.top, 8)
         }
         .padding()
         .frame(maxWidth: .infinity)
@@ -44,6 +91,6 @@ struct ProfileHeader: View {
 }
 
 #Preview {
-    ProfileHeader()
+    ProfileHeader(isEditing: .constant(false))
         .environmentObject(UserProfileManager())
 }
