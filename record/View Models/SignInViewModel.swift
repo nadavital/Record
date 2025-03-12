@@ -8,8 +8,6 @@
 import SwiftUI
 import AuthenticationServices
 import CryptoKit
-import Firebase
-import FirebaseFirestore
 
 class SignInViewModel: ObservableObject {
     @Published var username = ""
@@ -40,7 +38,7 @@ class SignInViewModel: ObservableObject {
             if let appleIDCredential = authorization.credential as? ASAuthorizationAppleIDCredential {
                 print("Processing Apple ID credential for user: \(appleIDCredential.user)")
                 
-                self.authManager.handleAppleSignIn(credential: appleIDCredential) { success in
+                authManager.handleAppleSignIn(credential: appleIDCredential) { success in
                     if success {
                         print("Successfully authenticated with Apple ID")
                         

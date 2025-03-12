@@ -7,7 +7,6 @@
 
 import SwiftUI
 import AuthenticationServices
-import Firebase
 
 struct SignInView: View {
     @StateObject private var viewModel: SignInViewModel

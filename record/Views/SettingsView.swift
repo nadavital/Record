@@ -19,6 +19,7 @@ struct SettingsView: View {
     @State private var editingBio = false
     @State private var tempBio = ""
     @State private var showSaveSuccess = false
+    @State private var showInvalidCharAlert = false
 
     var body: some View {
         NavigationStack {
@@ -27,23 +28,23 @@ struct SettingsView: View {
                 Section {
                     // Username
                     if editingUsername {
-                        TextField("Username", text: $newUsername)
-                            .onAppear {
-                                newUsername = profileManager.username
-                            }
-                            .onSubmit {
-                                if !newUsername.isEmpty {
-                                    profileManager.username = newUsername
-                                    if let currentUsername = authManager.username, currentUsername != newUsername {
-                                        authManager.updateUsername(username: newUsername) { _, _ in }
-                                    }
-                                    editingUsername = false
-                                    showSaveSuccess = true
+                        VStack(alignment: .leading, spacing: 8) {
+                            TextField("Username", text: $newUsername)
+                                .autocapitalization(.none)
+                                .disableAutocorrection(true)
+                                .onAppear {
+                                    newUsername = profileManager.username
                                 }
-                            }
-                        Text("Tap return to save your new username")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                                .onSubmit {
+                                    if !newUsername.isEmpty {
+                                        updateUsername()
+                                    }
+                                }
+                                
+                            Text("Tap return to save your new username")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
                     } else {
                         HStack {
                             Label("Username", systemImage: "person")
@@ -173,7 +174,50 @@ struct SettingsView: View {
             } message: {
                 Text("Your changes have been saved.")
             }
+            .alert("Error", isPresented: $authManager.showError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(authManager.errorMessage ?? "An unknown error occurred")
+            }
+            .alert("Invalid Characters", isPresented: $showInvalidCharAlert) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Username can only contain letters, numbers, underscores (_) and dots (.)")
+            }
         }
+    }
+    
+    private func updateUsername() {
+        guard let currentUsername = authManager.username,
+              currentUsername != newUsername else {
+            editingUsername = false
+            return
+        }
+        
+        // Check for invalid characters before attempting to save
+        guard isValidInput(newUsername) else {
+            showInvalidCharAlert = true
+            return
+        }
+        
+        authManager.updateUsername(username: newUsername) { success, error in
+            if success {
+                profileManager.username = newUsername
+                editingUsername = false
+                showSaveSuccess = true
+            } else {
+                // If update fails, revert to old username
+                newUsername = currentUsername
+                profileManager.username = currentUsername
+                editingUsername = false
+            }
+        }
+    }
+
+    private func isValidInput(_ input: String) -> Bool {
+        let validCharacters = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.")
+        let inputCharacters = CharacterSet(charactersIn: input)
+        return validCharacters.isSuperset(of: inputCharacters)
     }
 }
 

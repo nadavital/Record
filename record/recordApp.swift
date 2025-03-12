@@ -7,7 +7,6 @@
 
 import SwiftUI
 import MusicKit
-import Firebase
 
 @main
 struct recordApp: App {
@@ -18,13 +17,6 @@ struct recordApp: App {
     @StateObject private var authManager = AuthManager.shared
     @State private var musicAuthorizationStatus = MusicAuthorization.Status.notDetermined
     @State private var showUsernamePrompt = false
-    
-    init() {
-        FirebaseApp.configure()
-        #if DEBUG
-        FirebaseConfiguration.shared.setLoggerLevel(.debug)
-        #endif
-    }
     
     var body: some Scene {
         WindowGroup {

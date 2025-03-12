@@ -8,8 +8,7 @@
 import SwiftUI
 import AuthenticationServices
 import CryptoKit
-import Firebase
-import FirebaseFirestore
+import CloudKit
 
 class AuthManager: NSObject, ObservableObject {
     @Published var isAuthenticated = false
@@ -22,6 +21,9 @@ class AuthManager: NSObject, ObservableObject {
     
     // Used to store state for Apple Sign In
     private var currentNonce: String?
+    private let container = CKContainer.default()
+    private let userRecordType = "User"
+    private let usernameRecordType = "Username"
     
     static let shared = AuthManager()
     
@@ -167,8 +169,8 @@ class AuthManager: NSObject, ObservableObject {
                 
                 print("Using suggested username base: \(suggestedUsername)")
                 
-                // Save any user data we received to Firestore
-                self.saveUserDataToFirestore(
+                // Save any user data we received to CloudKit
+                self.saveUserData(
                     userId: userIdentifier,
                     email: credential.email,
                     firstName: firstName,
@@ -185,7 +187,7 @@ class AuthManager: NSObject, ObservableObject {
                     return
                 }
                 
-                // Check if we already have a username in Firestore
+                // Check if we already have a username in CloudKit
                 self.fetchUserData(for: userIdentifier) {
                     completion(true)
                 }
@@ -213,67 +215,62 @@ class AuthManager: NSObject, ObservableObject {
         }
     }
     
-    // MARK: - Firebase Storage
+    // MARK: - CloudKit Storage
     
-    private func saveUserDataToFirestore(userId: String, email: String?, firstName: String, lastName: String, suggestedUsername: String?) {
-        print("Saving user data to Firestore for userId: \(userId)")
-        let db = Firestore.firestore()
+    private func saveUserData(userId: String, email: String?, firstName: String, lastName: String, suggestedUsername: String?) {
+        print("Saving user data to CloudKit for userId: \(userId)")
         
-        // First check if user already exists
-        db.collection("users").document(userId).getDocument { [weak self] snapshot, error in
-            guard self != nil else { return }
+        let predicate = NSPredicate(format: "userId == %@", userId)
+        let query = CKQuery(recordType: userRecordType, predicate: predicate)
+        
+        container.privateCloudDatabase.perform(query, inZoneWith: nil) { [weak self] (records, error) in
+            guard let self = self else { return }
             
             if let error = error {
                 print("Error checking if user exists: \(error.localizedDescription)")
                 return
             }
             
-            if let document = snapshot, document.exists {
-                print("User document already exists, updating")
-                // User already exists, just update any new information
-                var dataToUpdate: [String: Any] = [
-                    "lastSignIn": FieldValue.serverTimestamp()
-                ]
+            if let existingRecord = records?.first {
+                print("User record already exists, updating")
                 
-                // Only update email if it's new
                 if let email = email, !email.isEmpty {
-                    dataToUpdate["email"] = email
+                    existingRecord["email"] = email
                 }
                 
-                db.collection("users").document(userId).updateData(dataToUpdate) { error in
+                existingRecord["lastSignIn"] = Date()
+                
+                self.container.privateCloudDatabase.save(existingRecord) { (_, error) in
                     if let error = error {
                         print("Error updating user: \(error.localizedDescription)")
                     } else {
-                        print("Successfully updated existing user document")
+                        print("Successfully updated existing user record")
                     }
                 }
             } else {
-                print("Creating new user document")
-                // New user, create record
-                var userData: [String: Any] = [
-                    "userId": userId,
-                    "createdAt": FieldValue.serverTimestamp(),
-                    "lastSignIn": FieldValue.serverTimestamp()
-                ]
+                print("Creating new user record")
+                let newRecord = CKRecord(recordType: self.userRecordType)
+                newRecord["userId"] = userId
+                newRecord["createdAt"] = Date()
+                newRecord["lastSignIn"] = Date()
                 
                 if let email = email, !email.isEmpty {
-                    userData["email"] = email
+                    newRecord["email"] = email
                 }
                 
                 if !firstName.isEmpty {
-                    userData["firstName"] = firstName
+                    newRecord["firstName"] = firstName
                 }
                 
                 if !lastName.isEmpty {
-                    userData["lastName"] = lastName
+                    newRecord["lastName"] = lastName
                 }
                 
-                // If we have a suggested username, store it
                 if let suggestedUsername = suggestedUsername, !suggestedUsername.isEmpty {
-                    userData["suggestedUsername"] = suggestedUsername
+                    newRecord["suggestedUsername"] = suggestedUsername
                 }
                 
-                db.collection("users").document(userId).setData(userData) { error in
+                self.container.privateCloudDatabase.save(newRecord) { (_, error) in
                     if let error = error {
                         print("Error creating user record: \(error.localizedDescription)")
                     } else {
@@ -286,58 +283,57 @@ class AuthManager: NSObject, ObservableObject {
     
     func fetchUserData(for userId: String, completion: (() -> Void)? = nil) {
         print("Fetching user data for userId: \(userId)")
-        let db = Firestore.firestore()
         
-        // Mark as loading
         self.isLoading = true
         
-        db.collection("users").document(userId).getDocument { [weak self] snapshot, error in
+        let predicate = NSPredicate(format: "userId == %@", userId)
+        let query = CKQuery(recordType: userRecordType, predicate: predicate)
+        
+        container.privateCloudDatabase.perform(query, inZoneWith: nil) { [weak self] (records, error) in
             guard let self = self else { return }
             
-            // Reset loading state
             DispatchQueue.main.async {
                 self.isLoading = false
-            }
-            
-            if let error = error {
-                print("Error fetching user data: \(error.localizedDescription)")
-                completion?()
-                return
-            }
-            
-            if let data = snapshot?.data() {
-                if let username = data["username"] as? String, !username.isEmpty {
-                    print("Found username in Firestore: \(username)")
-                    DispatchQueue.main.async {
-                        self.username = username
-                        // Store in UserDefaults as a cache
-                        UserDefaults.standard.set(username, forKey: "cachedUsername_\(userId)")
-                    }
-                } else {
-                    print("No username found in user document")
-                    DispatchQueue.main.async {
-                        self.username = nil
-                        // Clear any cached username
-                        UserDefaults.standard.removeObject(forKey: "cachedUsername_\(userId)")
-                    }
+                
+                if let error = error {
+                    print("Error fetching user data: \(error.localizedDescription)")
+                    completion?()
+                    return
                 }
                 
-                // Also update email if available
-                if let email = data["email"] as? String {
-                    DispatchQueue.main.async {
+                if let record = records?.first {
+                    if let username = record["username"] as? String, !username.isEmpty {
+                        print("Found username in CloudKit: \(username)")
+                        self.username = username
+                        UserDefaults.standard.set(username, forKey: "cachedUsername_\(userId)")
+                    } else {
+                        print("No username found in user record")
+                        self.username = nil
+                        UserDefaults.standard.removeObject(forKey: "cachedUsername_\(userId)")
+                    }
+                    
+                    if let email = record["email"] as? String {
                         self.email = email
                     }
+                } else {
+                    print("No user record found")
                 }
-            } else {
-                print("No user document found or document is empty")
+                
+                completion?()
             }
-            
-            completion?()
         }
     }
     
     // MARK: - Username Management
     
+    // Add this helper function to validate username characters
+    private func isValidUsername(_ username: String) -> Bool {
+        // Only allow letters, numbers, underscores, and dots
+        let validCharacterSet = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.")
+        let usernameCharacterSet = CharacterSet(charactersIn: username)
+        return validCharacterSet.isSuperset(of: usernameCharacterSet)
+    }
+
     func updateUsername(username: String, completion: @escaping (Bool, Error?) -> Void) {
         guard let userId = self.userId else {
             let error = NSError(domain: "AuthManager", code: -1, userInfo: [NSLocalizedDescriptionKey: "No user is signed in"])
@@ -346,8 +342,24 @@ class AuthManager: NSObject, ObservableObject {
             return
         }
         
+        // Validate username characters
+        guard isValidUsername(username) else {
+            let error = NSError(domain: "AuthManager", code: -1, userInfo: [NSLocalizedDescriptionKey: "Username can only contain letters, numbers, underscores, and dots"])
+            print("Invalid username characters: \(username)")
+            DispatchQueue.main.async {
+                self.errorMessage = "Username can only contain letters, numbers, underscores, and dots"
+                self.showError = true
+                self.isLoading = false
+            }
+            completion(false, error)
+            return
+        }
+        
         print("Updating username to: \(username) for user: \(userId)")
         isLoading = true
+        
+        // Store the old username to delete it later if update succeeds
+        let oldUsername = self.username?.lowercased()
         
         // First, check if username is already taken
         checkUsernameAvailability(username: username) { [weak self] available, error in
@@ -377,15 +389,15 @@ class AuthManager: NSObject, ObservableObject {
             }
             
             print("Username is available, saving...")
-            // Username is available, save it
-            let db = Firestore.firestore()
             
-            // Save username to user record
-            db.collection("users").document(userId).updateData([
-                "username": username
-            ]) { error in
+            // Update username in user record
+            let predicate = NSPredicate(format: "userId == %@", userId)
+            let query = CKQuery(recordType: self.userRecordType, predicate: predicate)
+            
+            self.container.privateCloudDatabase.perform(query, inZoneWith: nil) { [weak self] (records, error) in
+                guard let self = self else { return }
+                
                 if let error = error {
-                    print("Error saving username to user document: \(error.localizedDescription)")
                     DispatchQueue.main.async {
                         self.errorMessage = error.localizedDescription
                         self.showError = true
@@ -395,47 +407,81 @@ class AuthManager: NSObject, ObservableObject {
                     return
                 }
                 
-                print("Username saved to user document, now reserving in usernames collection")
-                // Reserve the username
-                db.collection("usernames").document(username.lowercased()).setData([
-                    "userId": userId,
-                    "createdAt": FieldValue.serverTimestamp()
-                ]) { error in
-                    DispatchQueue.main.async {
-                        self.isLoading = false
-                        
+                if let record = records?.first {
+                    record["username"] = username
+                    
+                    self.container.privateCloudDatabase.save(record) { (_, error) in
                         if let error = error {
-                            print("Error reserving username: \(error.localizedDescription)")
-                            self.errorMessage = error.localizedDescription
-                            self.showError = true
+                            DispatchQueue.main.async {
+                                self.errorMessage = error.localizedDescription
+                                self.showError = true
+                                self.isLoading = false
+                            }
                             completion(false, error)
                             return
                         }
                         
-                        print("Username successfully reserved")
-                        // Update local state and cache
-                        self.username = username
-                        UserDefaults.standard.set(username, forKey: "cachedUsername_\(userId)")
-                        completion(true, nil)
+                        // Reserve the new username
+                        let usernameRecord = CKRecord(recordType: self.usernameRecordType)
+                        usernameRecord["username"] = username.lowercased()
+                        usernameRecord["userId"] = userId
+                        
+                        self.container.privateCloudDatabase.save(usernameRecord) { (_, error) in
+                            // If we successfully saved the new username, delete the old one
+                            if let oldUsername = oldUsername {
+                                let oldUsernamePredicate = NSPredicate(format: "username == %@", oldUsername)
+                                let oldUsernameQuery = CKQuery(recordType: self.usernameRecordType, predicate: oldUsernamePredicate)
+                                
+                                self.container.privateCloudDatabase.perform(oldUsernameQuery, inZoneWith: nil) { (records, _) in
+                                    if let oldRecord = records?.first {
+                                        self.container.privateCloudDatabase.delete(withRecordID: oldRecord.recordID) { _, _ in }
+                                    }
+                                }
+                            }
+                            
+                            DispatchQueue.main.async {
+                                self.isLoading = false
+                                
+                                if let error = error {
+                                    self.errorMessage = error.localizedDescription
+                                    self.showError = true
+                                    completion(false, error)
+                                    return
+                                }
+                                
+                                self.username = username
+                                UserDefaults.standard.set(username, forKey: "cachedUsername_\(userId)")
+                                completion(true, nil)
+                            }
+                        }
                     }
+                } else {
+                    let error = NSError(domain: "AuthManager", code: -1, userInfo: [NSLocalizedDescriptionKey: "User record not found"])
+                    DispatchQueue.main.async {
+                        self.errorMessage = "User record not found"
+                        self.showError = true
+                        self.isLoading = false
+                    }
+                    completion(false, error)
                 }
             }
         }
     }
-    
+
     func checkUsernameAvailability(username: String, completion: @escaping (Bool, Error?) -> Void) {
         print("Checking availability for username: \(username)")
-        let db = Firestore.firestore()
         
-        // Check if username exists
-        db.collection("usernames").document(username.lowercased()).getDocument { document, error in
+        let predicate = NSPredicate(format: "username == %@", username.lowercased())
+        let query = CKQuery(recordType: usernameRecordType, predicate: predicate)
+        
+        container.privateCloudDatabase.perform(query, inZoneWith: nil) { (records, error) in
             if let error = error {
                 print("Error checking username: \(error.localizedDescription)")
                 completion(false, error)
                 return
             }
             
-            let isAvailable = !(document?.exists ?? false)
+            let isAvailable = records?.isEmpty ?? true
             print("Username '\(username)' available: \(isAvailable)")
             
             // Username is available if document doesn't exist
@@ -453,6 +499,13 @@ class AuthManager: NSObject, ObservableObject {
     
     private func clearUserData() {
         print("Clearing user data")
+        let userIdentifier = UserDefaults.standard.string(forKey: "appleUserIdentifier")
+        
+        // Remove cached username if it exists
+        if let userId = userIdentifier {
+            UserDefaults.standard.removeObject(forKey: "cachedUsername_\(userId)")
+        }
+        
         UserDefaults.standard.removeObject(forKey: "appleUserIdentifier")
         
         DispatchQueue.main.async {

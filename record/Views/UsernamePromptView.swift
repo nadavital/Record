@@ -5,14 +5,6 @@
 //  Created by Nadav Avital on 2/25/25.
 //
 
-
-//
-//  UsernamePromptView.swift
-//  record
-//
-//  Created by Nadav Avital on 2/25/25.
-//
-
 import SwiftUI
 
 struct UsernamePromptView: View {
@@ -23,6 +15,13 @@ struct UsernamePromptView: View {
     @State private var username = ""
     @State private var errorMessage: String?
     @State private var showError = false
+    @State private var showInvalidCharAlert = false
+    
+    private func isValidInput(_ input: String) -> Bool {
+        let validCharacters = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.")
+        let inputCharacters = CharacterSet(charactersIn: input)
+        return validCharacters.isSuperset(of: inputCharacters)
+    }
     
     var body: some View {
         ZStack {
@@ -40,7 +39,6 @@ struct UsernamePromptView: View {
                     .font(.subheadline)
                     .foregroundColor(Color(.secondaryLabel))
                     .multilineTextAlignment(.center)
-                    .padding(.bottom, 10)
                 
                 TextField("Username", text: $username)
                     .padding()
@@ -78,11 +76,22 @@ struct UsernamePromptView: View {
             .padding(30)
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
             .padding()
+            .alert("Invalid Characters", isPresented: $showInvalidCharAlert) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Username can only contain letters, numbers, underscores (_) and dots (.)")
+            }
         }
     }
     
     private func saveUsername() {
         guard username.count >= 3 else { return }
+        
+        // Check for invalid characters before attempting to save
+        guard isValidInput(username) else {
+            showInvalidCharAlert = true
+            return
+        }
         
         print("UsernamePromptView - Saving username: \(username)")
         errorMessage = nil
