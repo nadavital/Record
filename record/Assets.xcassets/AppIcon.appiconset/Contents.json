@@ -1,6 +1,7 @@
 {
   "images" : [
     {
+      "filename" : "record icon.png",
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"
@@ -12,6 +13,7 @@
           "value" : "dark"
         }
       ],
+      "filename" : "record icon dark.png",
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"
@@ -23,6 +25,7 @@
           "value" : "tinted"
         }
       ],
+      "filename" : "record icon tinted.png",
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"
