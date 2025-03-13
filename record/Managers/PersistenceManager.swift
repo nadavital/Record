@@ -285,7 +285,9 @@ class PersistenceManager: ObservableObject {
             return
         }
         
-        isSyncing = true
+        DispatchQueue.main.async {
+            self.isSyncing = true
+        }
         
         CloudKitSyncManager.shared.syncAllData(forUserId: userId) { error in
             DispatchQueue.main.async {
@@ -307,7 +309,9 @@ class PersistenceManager: ObservableObject {
     private func updateLastSyncDate() {
         let now = Date()
         UserDefaults.standard.set(now.timeIntervalSince1970, forKey: Keys.lastCloudSync)
-        lastSyncDate = now
+        DispatchQueue.main.async {
+            self.lastSyncDate = now
+        }
     }
     
     // MARK: - Helper Methods

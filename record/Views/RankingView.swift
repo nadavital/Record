@@ -10,6 +10,8 @@ import SwiftUI
 struct RankingView: View {
     @EnvironmentObject var rankingManager: MusicRankingManager
     @EnvironmentObject var musicAPI: MusicAPIManager
+    @EnvironmentObject private var authManager: AuthManager
+    @ObservedObject private var persistenceManager = PersistenceManager.shared
     @State private var showAddSongSheet = false
     @State private var selectedSegment = 0
     @State private var searchText = ""
@@ -76,9 +78,23 @@ struct RankingView: View {
                         Label("Add Song", systemImage: "plus")
                     }
                 }
+                ToolbarItem(placement: .navigationBarLeading) {
+                    if persistenceManager.isSyncing {
+                        ProgressView()
+                    }
+                }
             }
             .sheet(isPresented: $showAddSongSheet) {
                 UnifiedSearchView(searchType: .song)
+            }
+            .refreshable {
+                if let userId = authManager.userId {
+                    await withCheckedContinuation { continuation in
+                        persistenceManager.syncWithCloudKit { _ in
+                            continuation.resume()
+                        }
+                    }
+                }
             }
         }
     }

@@ -18,6 +18,9 @@ struct recordApp: App {
     @State private var musicAuthorizationStatus = MusicAuthorization.Status.notDetermined
     @State private var showUsernamePrompt = false
     
+    // Add persistence manager to access sync functionality
+    @ObservedObject private var persistenceManager = PersistenceManager.shared
+    
     var body: some Scene {
         WindowGroup {
             ZStack {
@@ -31,6 +34,10 @@ struct recordApp: App {
                         .onAppear {
                             checkMusicAuthorization()
                             checkIfUsernameNeeded()
+                            // Trigger automatic sync when app launches
+                            if let userId = authManager.userId {
+                                persistenceManager.syncWithCloudKit()
+                            }
                         }
                 } else {
                     SignInView(authManager: authManager, profileManager: userProfileManager)

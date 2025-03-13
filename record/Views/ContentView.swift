@@ -71,8 +71,6 @@ struct ContentView: View {
                 await musicAPI.checkMusicAuthorizationStatus()
                 await musicAPI.fetchListeningHistory()
                 
-                // No need for musicAPI.setupNowPlayingMonitoring(); handled by MusicPlayerManager
-                
                 #if DEBUG
                 musicAPI.setDemoCurrentSong()
                 #endif
@@ -80,7 +78,7 @@ struct ContentView: View {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     withAnimation {
                         isLoading = false
-                        nowPlayingBarVisible = playerManager.currentSong != nil // Use playerManager
+                        nowPlayingBarVisible = playerManager.currentSong != nil
                     }
                 }
                 

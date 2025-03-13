@@ -284,15 +284,16 @@ class CloudKitSyncManager: ObservableObject {
         loadRankedSongs(userId: userId) { songs, error in
             if let error = error {
                 syncError = error
-            } else if let songs = songs, !songs.isEmpty {
-                // Save the cloud data to local storage
-                PersistenceManager.shared.saveRankedSongs(songs, syncToCloud: false)
-            } else {
-                // If no cloud data, push local data to cloud
-                let localSongs = PersistenceManager.shared.loadRankedSongs()
-                if !localSongs.isEmpty {
-                    self.saveRankedSongs(localSongs, userId: userId)
+            } else if let cloudSongs = songs {
+                // Merge cloud and local songs
+                var localSongs = PersistenceManager.shared.loadRankedSongs()
+                // Add any cloud songs that aren't in local
+                for cloudSong in cloudSongs {
+                    if !localSongs.contains(where: { $0.id == cloudSong.id }) {
+                        localSongs.append(cloudSong)
+                    }
                 }
+                PersistenceManager.shared.saveRankedSongs(localSongs, syncToCloud: true)
             }
             dispatchGroup.leave()
         }
@@ -302,13 +303,16 @@ class CloudKitSyncManager: ObservableObject {
         loadPinnedAlbums(userId: userId) { albums, error in
             if let error = error {
                 syncError = error
-            } else if let albums = albums, !albums.isEmpty {
-                PersistenceManager.shared.savePinnedAlbums(albums, syncToCloud: false)
-            } else {
-                let localAlbums = PersistenceManager.shared.loadPinnedAlbums()
-                if !localAlbums.isEmpty {
-                    self.savePinnedAlbums(localAlbums, userId: userId)
+            } else if let cloudAlbums = albums {
+                // Merge cloud and local albums
+                var localAlbums = PersistenceManager.shared.loadPinnedAlbums()
+                // Add any cloud albums that aren't in local
+                for cloudAlbum in cloudAlbums {
+                    if !localAlbums.contains(where: { $0.id == cloudAlbum.id }) {
+                        localAlbums.append(cloudAlbum)
+                    }
                 }
+                PersistenceManager.shared.savePinnedAlbums(localAlbums, syncToCloud: true)
             }
             dispatchGroup.leave()
         }
@@ -318,13 +322,16 @@ class CloudKitSyncManager: ObservableObject {
         loadPinnedArtists(userId: userId) { artists, error in
             if let error = error {
                 syncError = error
-            } else if let artists = artists, !artists.isEmpty {
-                PersistenceManager.shared.savePinnedArtists(artists, syncToCloud: false)
-            } else {
-                let localArtists = PersistenceManager.shared.loadPinnedArtists()
-                if !localArtists.isEmpty {
-                    self.savePinnedArtists(localArtists, userId: userId)
+            } else if let cloudArtists = artists {
+                // Merge cloud and local artists
+                var localArtists = PersistenceManager.shared.loadPinnedArtists()
+                // Add any cloud artists that aren't in local
+                for cloudArtist in cloudArtists {
+                    if !localArtists.contains(where: { $0.id == cloudArtist.id }) {
+                        localArtists.append(cloudArtist)
+                    }
                 }
+                PersistenceManager.shared.savePinnedArtists(localArtists, syncToCloud: true)
             }
             dispatchGroup.leave()
         }
@@ -334,13 +341,16 @@ class CloudKitSyncManager: ObservableObject {
         loadAlbumRatings(userId: userId) { ratings, error in
             if let error = error {
                 syncError = error
-            } else if let ratings = ratings, !ratings.isEmpty {
-                PersistenceManager.shared.saveAlbumRatings(ratings, syncToCloud: false)
-            } else {
-                let localRatings = PersistenceManager.shared.loadAlbumRatings()
-                if !localRatings.isEmpty {
-                    self.saveAlbumRatings(localRatings, userId: userId)
+            } else if let cloudRatings = ratings {
+                // Merge cloud and local ratings
+                var localRatings = PersistenceManager.shared.loadAlbumRatings()
+                // Add any cloud ratings that aren't in local
+                for cloudRating in cloudRatings {
+                    if !localRatings.contains(where: { $0.id == cloudRating.id }) {
+                        localRatings.append(cloudRating)
+                    }
                 }
+                PersistenceManager.shared.saveAlbumRatings(localRatings, syncToCloud: true)
             }
             dispatchGroup.leave()
         }
