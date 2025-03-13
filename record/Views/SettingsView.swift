@@ -3,6 +3,7 @@
 //  record
 //
 //  Created by Nadav Avital on 2/25/25.
+//  Updated with CloudKit sync options
 //
 
 import SwiftUI
@@ -20,6 +21,12 @@ struct SettingsView: View {
     @State private var tempBio = ""
     @State private var showSaveSuccess = false
     @State private var showInvalidCharAlert = false
+    @State private var showClearDataConfirmation = false
+    @State private var showSyncingIndicator = false
+    @State private var syncError: String? = nil
+    
+    // For sync status
+    @ObservedObject private var persistenceManager = PersistenceManager.shared
 
     var body: some View {
         NavigationStack {
@@ -121,8 +128,58 @@ struct SettingsView: View {
                     Text("Customize how others see you on Record")
                 }
                 
+                // Cloud Sync Section
+                Section {
+                    HStack {
+                        Label("iCloud Sync", systemImage: "icloud")
+                        Spacer()
+                        if persistenceManager.isSyncing {
+                            ProgressView()
+                                .scaleEffect(0.7)
+                        } else {
+                            Text(persistenceManager.lastSyncDate != nil ? "Enabled" : "Not synced")
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    
+                    Button(action: {
+                        syncData()
+                    }) {
+                        HStack {
+                            Label("Sync Now", systemImage: "arrow.triangle.2.circlepath")
+                            Spacer()
+                            if persistenceManager.isSyncing {
+                                ProgressView()
+                                    .scaleEffect(0.7)
+                            }
+                        }
+                    }
+                    .disabled(persistenceManager.isSyncing)
+                    
+                    if let lastSyncDate = persistenceManager.lastSyncDate {
+                        HStack {
+                            Label("Last Synced", systemImage: "clock")
+                            Spacer()
+                            Text(formatDate(lastSyncDate))
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                } header: {
+                    Text("Cloud Sync")
+                } footer: {
+                    Text("Your data is synced across all your devices using iCloud")
+                }
+                
                 // Account section
                 Section(header: Text("Account")) {
+                    // Clear data button
+                    Button(role: .destructive) {
+                        showClearDataConfirmation = true
+                    } label: {
+                        Label("Clear Local Data", systemImage: "trash")
+                    }
+                    
+                    // Sign out button
                     Button(role: .destructive) {
                         showSignOutConfirmation = true
                     } label: {
@@ -169,6 +226,14 @@ struct SettingsView: View {
             } message: {
                 Text("Are you sure you want to sign out?")
             }
+            .alert("Clear Data", isPresented: $showClearDataConfirmation) {
+                Button("Cancel", role: .cancel) {}
+                Button("Clear Data", role: .destructive) {
+                    PersistenceManager.shared.clearAllData()
+                }
+            } message: {
+                Text("This will clear all your locally saved data. Your cloud data will remain intact. You can sync again to restore your data.")
+            }
             .alert("Success!", isPresented: $showSaveSuccess) {
                 Button("OK", role: .cancel) {}
             } message: {
@@ -183,6 +248,15 @@ struct SettingsView: View {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text("Username can only contain letters, numbers, underscores (_) and dots (.)")
+            }
+            .alert(isPresented: .constant(syncError != nil)) {
+                Alert(
+                    title: Text("Sync Error"),
+                    message: Text(syncError ?? "Unknown sync error"),
+                    dismissButton: .default(Text("OK")) {
+                        syncError = nil
+                    }
+                )
             }
         }
     }
@@ -218,6 +292,26 @@ struct SettingsView: View {
         let validCharacters = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.")
         let inputCharacters = CharacterSet(charactersIn: input)
         return validCharacters.isSuperset(of: inputCharacters)
+    }
+    
+    private func syncData() {
+        guard let userId = authManager.userId else { return }
+        
+        showSyncingIndicator = true
+        
+        persistenceManager.syncWithCloudKit { error in
+            showSyncingIndicator = false
+            
+            if let error = error {
+                syncError = error.localizedDescription
+            }
+        }
+    }
+    
+    private func formatDate(_ date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .short
+        return formatter.localizedString(for: date, relativeTo: Date())
     }
 }
 

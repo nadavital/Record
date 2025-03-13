@@ -2,14 +2,13 @@
 //  PersistenceManager.swift
 //  record
 //
-//  Created by GitHub Copilot on 4/2/25.
 //
 
 import Foundation
 import SwiftUI
 import Combine
 
-class PersistenceManager {
+class PersistenceManager: ObservableObject {
     // Singleton instance
     static let shared = PersistenceManager()
     
@@ -20,6 +19,7 @@ class PersistenceManager {
         static let pinnedArtists = "pinnedArtists"
         static let userProfile = "userProfile"
         static let artworkCache = "artworkCache"
+        static let lastCloudSync = "lastCloudSync"
     }
     
     // Cache for artwork URLs
@@ -31,20 +31,42 @@ class PersistenceManager {
         dataChangeSubject.eraseToAnyPublisher()
     }
     
+    // CloudKit sync handler
+    @Published var isSyncing = false
+    @Published var lastSyncDate: Date? = nil
+    
     private init() {
         // Load the artwork cache on initialization
         loadArtworkCache()
+        
+        // Load the last sync date
+        let timeInterval = UserDefaults.standard.double(forKey: Keys.lastCloudSync)
+        if timeInterval > 0 {
+            lastSyncDate = Date(timeIntervalSince1970: timeInterval)
+        }
     }
     
     // MARK: - Save Methods
     
-    func saveRankedSongs(_ songs: [Song]) {
+    func saveRankedSongs(_ songs: [Song], syncToCloud: Bool = true) {
         save(songs, forKey: Keys.rankedSongs)
         saveArtworkURLs(from: songs)
         dataChangeSubject.send()
+        
+        // Sync to CloudKit if needed
+        if syncToCloud, let userId = AuthManager.shared.userId {
+            CloudKitSyncManager.shared.saveRankedSongs(songs, userId: userId) { error in
+                if let error = error {
+                    print("Failed to sync ranked songs to CloudKit: \(error.localizedDescription)")
+                } else {
+                    print("Successfully synced ranked songs to CloudKit")
+                    self.updateLastSyncDate()
+                }
+            }
+        }
     }
     
-    func savePinnedAlbums(_ albums: [Album]) {
+    func savePinnedAlbums(_ albums: [Album], syncToCloud: Bool = true) {
         do {
             let encoder = JSONEncoder()
             let data = try encoder.encode(albums)
@@ -58,12 +80,24 @@ class PersistenceManager {
             }
             saveArtworkCache()
             dataChangeSubject.send()
+            
+            // Sync to CloudKit if needed
+            if syncToCloud, let userId = AuthManager.shared.userId {
+                CloudKitSyncManager.shared.savePinnedAlbums(albums, userId: userId) { error in
+                    if let error = error {
+                        print("Failed to sync pinned albums to CloudKit: \(error.localizedDescription)")
+                    } else {
+                        print("Successfully synced pinned albums to CloudKit")
+                        self.updateLastSyncDate()
+                    }
+                }
+            }
         } catch {
             print("Error saving albums: \(error.localizedDescription)")
         }
     }
     
-    func savePinnedArtists(_ artists: [Artist]) {
+    func savePinnedArtists(_ artists: [Artist], syncToCloud: Bool = true) {
         do {
             let encoder = JSONEncoder()
             let data = try encoder.encode(artists)
@@ -77,20 +111,43 @@ class PersistenceManager {
             }
             saveArtworkCache()
             dataChangeSubject.send()
+            
+            // Sync to CloudKit if needed
+            if syncToCloud, let userId = AuthManager.shared.userId {
+                CloudKitSyncManager.shared.savePinnedArtists(artists, userId: userId) { error in
+                    if let error = error {
+                        print("Failed to sync pinned artists to CloudKit: \(error.localizedDescription)")
+                    } else {
+                        print("Successfully synced pinned artists to CloudKit")
+                        self.updateLastSyncDate()
+                    }
+                }
+            }
         } catch {
             print("Error saving artists: \(error.localizedDescription)")
         }
     }
     
-    func saveUserProfile(username: String, bio: String, profileImage: String) {
+    func saveUserProfile(username: String, bio: String, profileImage: String, syncToCloud: Bool = true) {
         let profile: [String: Any] = [
             "username": username,
             "bio": bio,
-            "profileImage": profileImage,
-
+            "profileImage": profileImage
         ]
         UserDefaults.standard.set(profile, forKey: Keys.userProfile)
         dataChangeSubject.send()
+        
+        // Sync to CloudKit if needed
+        if syncToCloud, let userId = AuthManager.shared.userId {
+            CloudKitSyncManager.shared.saveUserProfile(username: username, bio: bio, userId: userId) { error in
+                if let error = error {
+                    print("Failed to sync user profile to CloudKit: \(error.localizedDescription)")
+                } else {
+                    print("Successfully synced user profile to CloudKit")
+                    self.updateLastSyncDate()
+                }
+            }
+        }
     }
     
     // MARK: - Load Methods
@@ -170,42 +227,88 @@ class PersistenceManager {
     
     // MARK: - Album Ratings
         
-        private enum AlbumRatingKeys {
-            static let albumRatings = "albumRatings"
-        }
+    private enum AlbumRatingKeys {
+        static let albumRatings = "albumRatings"
+    }
+    
+    func saveAlbumRatings(_ ratings: [AlbumRating], syncToCloud: Bool = true) {
+        save(ratings, forKey: AlbumRatingKeys.albumRatings)
+        dataChangeSubject.send()
         
-        func saveAlbumRatings(_ ratings: [AlbumRating]) {
-            save(ratings, forKey: AlbumRatingKeys.albumRatings)
-            dataChangeSubject.send()
-        }
-        
-        func loadAlbumRatings() -> [AlbumRating] {
-            return load(forKey: AlbumRatingKeys.albumRatings) ?? []
-        }
-        
-        func saveAlbumRating(_ rating: AlbumRating) {
-            var ratings = loadAlbumRatings()
-            
-            // Update existing or add new
-            if let index = ratings.firstIndex(where: { $0.id == rating.id }) {
-                ratings[index] = rating
-            } else {
-                ratings.append(rating)
+        // Sync to CloudKit if needed
+        if syncToCloud, let userId = AuthManager.shared.userId {
+            CloudKitSyncManager.shared.saveAlbumRatings(ratings, userId: userId) { error in
+                if let error = error {
+                    print("Failed to sync album ratings to CloudKit: \(error.localizedDescription)")
+                } else {
+                    print("Successfully synced album ratings to CloudKit")
+                    self.updateLastSyncDate()
+                }
             }
-            
-            saveAlbumRatings(ratings)
+        }
+    }
+    
+    func loadAlbumRatings() -> [AlbumRating] {
+        return load(forKey: AlbumRatingKeys.albumRatings) ?? []
+    }
+    
+    func saveAlbumRating(_ rating: AlbumRating) {
+        var ratings = loadAlbumRatings()
+        
+        // Update existing or add new
+        if let index = ratings.firstIndex(where: { $0.id == rating.id }) {
+            ratings[index] = rating
+        } else {
+            ratings.append(rating)
         }
         
-        func deleteAlbumRating(withId id: UUID) {
-            var ratings = loadAlbumRatings()
-            ratings.removeAll(where: { $0.id == id })
-            saveAlbumRatings(ratings)
+        saveAlbumRatings(ratings)
+    }
+    
+    func deleteAlbumRating(withId id: UUID) {
+        var ratings = loadAlbumRatings()
+        ratings.removeAll(where: { $0.id == id })
+        saveAlbumRatings(ratings)
+    }
+    
+    func getAlbumRating(forAlbumId albumId: String) -> AlbumRating? {
+        let ratings = loadAlbumRatings()
+        return ratings.first(where: { $0.albumId == albumId })
+    }
+    
+    // MARK: - CloudKit Sync
+    
+    func syncWithCloudKit(completion: ((Error?) -> Void)? = nil) {
+        guard let userId = AuthManager.shared.userId else {
+            print("Cannot sync with CloudKit - no user ID")
+            completion?(NSError(domain: "PersistenceManager", code: -1, userInfo: [NSLocalizedDescriptionKey: "No user ID available for sync"]))
+            return
         }
         
-        func getAlbumRating(forAlbumId albumId: String) -> AlbumRating? {
-            let ratings = loadAlbumRatings()
-            return ratings.first(where: { $0.albumId == albumId })
+        isSyncing = true
+        
+        CloudKitSyncManager.shared.syncAllData(forUserId: userId) { error in
+            DispatchQueue.main.async {
+                self.isSyncing = false
+                
+                if let error = error {
+                    print("Failed to sync with CloudKit: \(error.localizedDescription)")
+                    completion?(error)
+                } else {
+                    print("Successfully synced with CloudKit")
+                    self.updateLastSyncDate()
+                    self.dataChangeSubject.send()
+                    completion?(nil)
+                }
+            }
         }
+    }
+    
+    private func updateLastSyncDate() {
+        let now = Date()
+        UserDefaults.standard.set(now.timeIntervalSince1970, forKey: Keys.lastCloudSync)
+        lastSyncDate = now
+    }
     
     // MARK: - Helper Methods
     
@@ -263,6 +366,7 @@ class PersistenceManager {
         UserDefaults.standard.removeObject(forKey: Keys.pinnedArtists)
         UserDefaults.standard.removeObject(forKey: Keys.userProfile)
         UserDefaults.standard.removeObject(forKey: Keys.artworkCache)
+        UserDefaults.standard.removeObject(forKey: Keys.lastCloudSync)
         artworkCache.removeAll()
         dataChangeSubject.send()
     }

@@ -3,6 +3,7 @@
 //  record
 //
 //  Created by Nadav Avital on 2/25/25.
+//  Updated with CloudKit sync integration
 //
 
 import SwiftUI
@@ -183,12 +184,19 @@ class AuthManager: NSObject, ObservableObject {
                    !cachedUsername.isEmpty {
                     print("Found cached username: \(cachedUsername)")
                     self.username = cachedUsername
+                    
+                    // Trigger a data sync from CloudKit
+                    self.syncUserDataFromCloud(userId: userIdentifier)
+                    
                     completion(true)
                     return
                 }
                 
                 // Check if we already have a username in CloudKit
                 self.fetchUserData(for: userIdentifier) {
+                    // Trigger a data sync from CloudKit
+                    self.syncUserDataFromCloud(userId: userIdentifier)
+                    
                     completion(true)
                 }
             }
@@ -486,6 +494,19 @@ class AuthManager: NSObject, ObservableObject {
             
             // Username is available if document doesn't exist
             completion(isAvailable, nil)
+        }
+    }
+    
+    // MARK: - Data Sync
+    
+    func syncUserDataFromCloud(userId: String) {
+        // Trigger a sync with CloudKit
+        PersistenceManager.shared.syncWithCloudKit { error in
+            if let error = error {
+                print("Error syncing data from CloudKit: \(error.localizedDescription)")
+            } else {
+                print("Successfully synced data from CloudKit")
+            }
         }
     }
     
