@@ -6,17 +6,37 @@ struct ReviewView: View {
     @EnvironmentObject private var authManager: AuthManager
     @ObservedObject private var persistenceManager = PersistenceManager.shared
     @State private var showAddAlbumSheet = false
+    @State private var sortOption = RankedAlbumsView.SortOption.rating
     
     var body: some View {
         NavigationStack {
-            RankedAlbumsView()
+            RankedAlbumsView(sortOption: $sortOption)
                 .navigationTitle("Album Reviews")
                 .toolbar {
                     ToolbarItem(placement: .navigationBarTrailing) {
-                        Button {
-                            showAddAlbumSheet = true
-                        } label: {
-                            Label("Add Album", systemImage: "plus")
+                        HStack(spacing: 12) {
+                            Menu {
+                                Picker(selection: $sortOption, label: Text("Sort by")) {
+                                    ForEach([RankedAlbumsView.SortOption.rating, .recent, .title], id: \.self) { option in
+                                        Label {
+                                            Text(option.label)
+                                        } icon: {
+                                            if sortOption == option {
+                                                Image(systemName: "checkmark")
+                                            }
+                                        }
+                                        .tag(option)
+                                    }
+                                }
+                            } label: {
+                                Label("Sort", systemImage: "arrow.up.arrow.down")
+                            }
+                            
+                            Button {
+                                showAddAlbumSheet = true
+                            } label: {
+                                Label("Add Album", systemImage: "plus")
+                            }
                         }
                     }
                     

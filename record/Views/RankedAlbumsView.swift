@@ -4,10 +4,18 @@ struct RankedAlbumsView: View {
     @EnvironmentObject var albumRatingManager: AlbumRatingManager
     @EnvironmentObject var musicAPI: MusicAPIManager
     @State private var searchText = ""
-    @State private var sortOption: SortOption = .rating
+    @Binding var sortOption: SortOption
     
     enum SortOption {
         case rating, recent, title
+        
+        var label: String {
+            switch self {
+            case .rating: return "Highest Rated"
+            case .recent: return "Most Recent"
+            case .title: return "Title"
+            }
+        }
     }
     
     var filteredAlbums: [AlbumRating] {
@@ -53,15 +61,6 @@ struct RankedAlbumsView: View {
             }
             .background(Color(.secondarySystemBackground))
             .cornerRadius(10)
-            .padding(.horizontal)
-            
-            // Sort options
-            Picker("Sort by", selection: $sortOption) {
-                Text("Highest Rated").tag(SortOption.rating)
-                Text("Most Recent").tag(SortOption.recent)
-                Text("Title").tag(SortOption.title)
-            }
-            .pickerStyle(SegmentedPickerStyle())
             .padding(.horizontal)
             
             if albumRatingManager.albumRatings.isEmpty {

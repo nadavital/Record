@@ -13,21 +13,41 @@ struct RankingView: View {
     @EnvironmentObject private var authManager: AuthManager
     @ObservedObject private var persistenceManager = PersistenceManager.shared
     @State private var showAddSongSheet = false
-    @State private var selectedSegment = 0
+    @State private var selectedFilter = FilterOption.all
     @State private var searchText = ""
     @Environment(\.colorScheme) private var colorScheme
     
-    private var segmentTitles = ["All", "Loved", "Fine", "Disliked"]
+    enum FilterOption {
+        case all, loved, fine, disliked
+        
+        var label: String {
+            switch self {
+            case .all: return "All Songs"
+            case .loved: return "Loved"
+            case .fine: return "Fine"
+            case .disliked: return "Disliked"
+            }
+        }
+        
+        var icon: String {
+            switch self {
+            case .all: return "music.note.list"
+            case .loved: return "heart.fill"
+            case .fine: return "hand.thumbsup"
+            case .disliked: return "hand.thumbsdown"
+            }
+        }
+    }
     
     var filteredSongs: [Song] {
         let songs = rankingManager.rankedSongs
         
         let sentimentFiltered: [Song]
-        switch selectedSegment {
-        case 1: sentimentFiltered = songs.filter { $0.sentiment == .love }
-        case 2: sentimentFiltered = songs.filter { $0.sentiment == .fine }
-        case 3: sentimentFiltered = songs.filter { $0.sentiment == .dislike }
-        default: sentimentFiltered = songs
+        switch selectedFilter {
+        case .loved: sentimentFiltered = songs.filter { $0.sentiment == .love }
+        case .fine: sentimentFiltered = songs.filter { $0.sentiment == .fine }
+        case .disliked: sentimentFiltered = songs.filter { $0.sentiment == .dislike }
+        case .all: sentimentFiltered = songs
         }
         
         if !searchText.isEmpty {
@@ -43,9 +63,6 @@ struct RankingView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 8) {
-                CustomFilterBarView(selectedSegment: $selectedSegment, segmentTitles: segmentTitles)
-                    .padding(.horizontal)
-                
                 // Search bar
                 HStack {
                     Image(systemName: "magnifyingglass")
@@ -53,7 +70,7 @@ struct RankingView: View {
                         .padding(.leading, 8)
                     TextField("Search songs or artists", text: $searchText)
                         .padding(.vertical, 8)
-                    if (!searchText.isEmpty) {
+                    if !searchText.isEmpty {
                         Button(action: { searchText = "" }) {
                             Image(systemName: "xmark.circle.fill")
                                 .foregroundColor(.secondary)
@@ -74,10 +91,28 @@ struct RankingView: View {
             .navigationTitle("Ranked Songs")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        showAddSongSheet = true
-                    } label: {
-                        Label("Add Song", systemImage: "plus")
+                    HStack(spacing: 12) {
+                        Menu {
+                            ForEach([FilterOption.all, .loved, .fine, .disliked], id: \.self) { option in
+                                Button {
+                                    selectedFilter = option
+                                } label: {
+                                    Label {
+                                        Text(option.label)
+                                    } icon: {
+                                        Image(systemName: selectedFilter == option ? "checkmark" : option.icon)
+                                    }
+                                }
+                            }
+                        } label: {
+                            Label("Filter", systemImage: "line.3.horizontal.decrease")
+                        }
+
+                        Button {
+                            showAddSongSheet = true
+                        } label: {
+                            Label("Add Song", systemImage: "plus")
+                        }
                     }
                 }
                 
