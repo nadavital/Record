@@ -25,12 +25,12 @@ struct RateAlbumOverlayView: View {
     }
     
     var body: some View {
+        // Full screen overlay that covers everything
         ZStack {
-            // Dimmed background
+            // Dimmed background - extend to cover entire screen
             Color(.systemBackground)
                 .opacity(0.95)
-                .ignoresSafeArea()
-                .zIndex(10)
+                .edgesIgnoringSafeArea(.all)
             
             // Rating card
             VStack(spacing: 20) {
@@ -58,27 +58,27 @@ struct RateAlbumOverlayView: View {
                 // Album info with artwork
                 VStack(spacing: 12) {
                     if let album = albumRatingManager.currentAlbum {
-                    RemoteArtworkView(
-                        artworkURL: album.artworkURL,
-                        placeholderText: album.title,
-                        cornerRadius: 8,
-                        size: CGSize(width: 90, height: 90)
-                    )
-                    .shadow(radius: 3)
-                    
-                    Text(album.title)
-                        .font(.callout)
-                        .fontWeight(.medium)
-                        .foregroundColor(Color(.label))
-                        .lineLimit(2)
-                        .multilineTextAlignment(.center)
-                    
-                    Text(album.artist)
-                        .font(.caption)
-                        .foregroundColor(Color(.secondaryLabel))
-                        .lineLimit(1)
-                        .multilineTextAlignment(.center)
-                }
+                        RemoteArtworkView(
+                            artworkURL: album.artworkURL,
+                            placeholderText: album.title,
+                            cornerRadius: 8,
+                            size: CGSize(width: 90, height: 90)
+                        )
+                        .shadow(radius: 3)
+                        
+                        Text(album.title)
+                            .font(.callout)
+                            .fontWeight(.medium)
+                            .foregroundColor(Color(.label))
+                            .lineLimit(2)
+                            .multilineTextAlignment(.center)
+                        
+                        Text(album.artist)
+                            .font(.caption)
+                            .foregroundColor(Color(.secondaryLabel))
+                            .lineLimit(1)
+                            .multilineTextAlignment(.center)
+                    }
                 }
                 .padding(.horizontal, 24)
                 
@@ -139,17 +139,16 @@ struct RateAlbumOverlayView: View {
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
             .shadow(color: Color(.sRGBLinear, white: 0, opacity: 0.2), radius: 15)
             .frame(maxWidth: 350)
-            .zIndex(11)
-            .onAppear {
-                // If album is already rated, load existing rating
-                if let existing = existingRating {
-                    rating = existing.rating
-                    review = existing.review
-                }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .edgesIgnoringSafeArea(.all)
+        .onAppear {
+            // If album is already rated, load existing rating
+            if let existing = existingRating {
+                rating = existing.rating
+                review = existing.review
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-        .padding()
     }
     
     private func saveRating() {

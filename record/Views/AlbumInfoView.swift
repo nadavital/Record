@@ -4,14 +4,11 @@ import MusicKit
 struct AlbumInfoView: View {
     @EnvironmentObject var musicAPI: MusicAPIManager
     @EnvironmentObject var rankingManager: MusicRankingManager
+    @EnvironmentObject var albumRatingManager: AlbumRatingManager
     @StateObject private var viewModel: AlbumInfoViewModel
-    @StateObject private var albumRatingManager = AlbumRatingManager()
     
     let album: Album
     
-    @State private var isEditingReview = false
-    @State private var reviewText = ""
-    @State private var reviewRating: Double = 0
     @State private var selectedTrack: Track?
     
     init(album: Album, musicAPI: MusicAPIManager) {
@@ -60,7 +57,7 @@ struct AlbumInfoView: View {
                             .font(.headline)
                             .foregroundColor(.primary)
                         Spacer()
-                        Button(action: prepareToEditReview) {
+                        Button(action: showRatingOverlay) {
                             Text(getAlbumRating()?.review.isEmpty ?? true ? "Add Review" : "Edit")
                                 .font(.subheadline)
                                 .foregroundColor(.accentColor)
@@ -162,9 +159,6 @@ struct AlbumInfoView: View {
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .navigationTitle(album.title)
         .navigationBarTitleDisplayMode(.inline)
-        .sheet(isPresented: $isEditingReview) {
-            reviewEditorSheet
-        }
         .sheet(item: $selectedTrack) { track in
             SongInfoView(
                 rankedSong: getRankedSong(for: track) ?? convertTrackToSong(track),
@@ -182,43 +176,6 @@ struct AlbumInfoView: View {
         }
         .onAppear {
             loadAlbumDetails()
-            loadCurrentRating()
-        }
-    }
-    
-    // MARK: - Review Editor
-    private var reviewEditorSheet: some View {
-        NavigationView {
-            VStack(spacing: 16) {
-                StarRatingView(
-                    rating: reviewRating,
-                    onTap: { reviewRating = $0 },
-                    size: 30,
-                    spacing: 8,
-                    fillColor: .yellow
-                )
-                TextEditor(text: $reviewText)
-                    .frame(height: 200)
-                    .padding(4)
-                    .background(Color(.systemBackground))
-                    .cornerRadius(8)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.2), lineWidth: 1))
-            }
-            .padding()
-            .background(Color(.systemGroupedBackground).ignoresSafeArea())
-            .navigationTitle("Album Review")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { isEditingReview = false }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        saveReview()
-                        isEditingReview = false
-                    }
-                }
-            }
         }
     }
     
@@ -227,32 +184,26 @@ struct AlbumInfoView: View {
         viewModel.loadAlbumDetails(album: album)
     }
     
-    private func loadCurrentRating() {
-        if let rating = getAlbumRating() {
-            reviewRating = rating.rating
-            reviewText = rating.review
-        }
-    }
-    
     private func getAlbumRating() -> AlbumRating? {
         albumRatingManager.getRating(forAlbumId: album.id.uuidString)
     }
     
-    private func prepareToEditReview() {
-        loadCurrentRating()
-        isEditingReview = true
-    }
-    
-    private func saveReview() {
-        let rating = AlbumRating(
-            albumId: album.id.uuidString,
-            title: album.title,
-            artist: album.artist,
-            rating: reviewRating,
-            review: reviewText,
-            artworkURL: album.artworkURL
-        )
-        albumRatingManager.saveRating(rating)
+    private func showRatingOverlay() {
+        // First check if this album has an existing rating
+        if let existingRating = albumRatingManager.getRating(forAlbumId: album.id.uuidString) {
+            // Create an album with the same ID to ensure we find the match
+            let ratingAlbum = Album(
+                id: UUID(uuidString: existingRating.albumId) ?? album.id,
+                title: album.title,
+                artist: album.artist,
+                albumArt: album.title,
+                artworkURL: album.artworkURL
+            )
+            albumRatingManager.rateAlbum(ratingAlbum)
+        } else {
+            // Use album as is for new ratings
+            albumRatingManager.rateAlbum(album)
+        }
     }
     
     private func sortedRankedSongs() -> [Track] {
