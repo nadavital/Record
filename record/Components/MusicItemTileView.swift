@@ -1,8 +1,6 @@
 //
-//  MusicItemTileView.swift
+//  MusicItemTileView.swift - Updated
 //  record
-//
-//  Created by Nadav Avital on 2/24/25.
 //
 
 import SwiftUI
@@ -14,12 +12,16 @@ struct MusicItemTileView: View {
     var albumName: String?
     var artworkID: String
     var onSelect: () -> Void
-    @ObservedObject var musicAPI = MusicAPIManager()
+    @ObservedObject var musicAPI: MusicAPIManager
+    @EnvironmentObject var albumRatingManager: AlbumRatingManager
     
     // Add properties for tracking if a song is already ranked
     var isAlreadyRanked: Bool = false
     var currentRank: Int = 0
     var currentScore: Double = 0.0
+    
+    // For albums - to show if already reviewed
+    var searchType: SearchType = .song
     
     var body: some View {
         Button(action: {
@@ -51,8 +53,29 @@ struct MusicItemTileView: View {
                 
                 Spacer()
                 
-                // Show ranking information or add button
-                if isAlreadyRanked {
+                // Show ranking information, album rating, or add button
+                if searchType == .album {
+                    if let albumRating = getAlbumRating() {
+                        HStack(spacing: 8) {
+                            // Compact star rating display
+                            Image(systemName: "star.fill")
+                                .font(.system(size: 14))
+                                .foregroundColor(.yellow)
+                            
+                            Text(String(format: "%.1f", albumRating.rating))
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(Color(.secondaryLabel))
+                            
+                            Image(systemName: "arrow.counterclockwise.circle.fill")
+                                .font(.system(size: 22))
+                                .foregroundColor(Color.accentColor)
+                        }
+                    } else {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 22))
+                            .foregroundColor(Color.accentColor)
+                    }
+                } else if isAlreadyRanked {
                     HStack(spacing: 8) {
                         // Ranking info
                         VStack(alignment: .trailing, spacing: 2) {
@@ -81,9 +104,21 @@ struct MusicItemTileView: View {
         }
         .buttonStyle(PlainButtonStyle())
     }
+    
+    // Check if album is already rated
+    private func getAlbumRating() -> AlbumRating? {
+        // Only relevant for album search type
+        guard searchType == .album else { return nil }
+        
+        // For albums, we need to check all album ratings to find a match based on title and artist
+        return albumRatingManager.albumRatings.first { rating in
+            rating.title.lowercased() == title.lowercased() &&
+            rating.artist.lowercased() == artist.lowercased()
+        }
+    }
 }
 
-#Preview {
+#Preview("Song Search Item") {
     let mockMusicAPI = MusicAPIManager()
     
     VStack(spacing: 20) {
@@ -109,4 +144,41 @@ struct MusicItemTileView: View {
         )
     }
     .padding()
+    .environmentObject(AlbumRatingManager())
+}
+
+#Preview("Album Search Item") {
+    let mockMusicAPI = MusicAPIManager()
+    let albumRatingManager = AlbumRatingManager()
+    
+    // Create a mock rating
+    let rating = AlbumRating(
+        albumId: "1234",
+        title: "Rated Album",
+        artist: "Rated Artist",
+        rating: 4.5
+    )
+    albumRatingManager.saveRating(rating)
+    
+    return VStack(spacing: 20) {
+        MusicItemTileView(
+            title: "Unrated Album",
+            artist: "Artist Name",
+            artworkID: "9876",
+            onSelect: {},
+            musicAPI: mockMusicAPI,
+            searchType: .album
+        )
+        
+        MusicItemTileView(
+            title: "Rated Album",
+            artist: "Rated Artist",
+            artworkID: "1234",
+            onSelect: {},
+            musicAPI: mockMusicAPI,
+            searchType: .album
+        )
+    }
+    .padding()
+    .environmentObject(albumRatingManager)
 }

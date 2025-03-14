@@ -1,13 +1,4 @@
 //
-//  SearchResultsView.swift
-//  record
-//
-//  Created by Nadav Avital on 3/5/25.
-//
-
-import SwiftUI
-
-//
 //  SearchResultsView.swift - Corrected Update
 //
 
@@ -56,7 +47,8 @@ struct SearchResultsView: View {
                                         musicAPI: musicAPI,
                                         isAlreadyRanked: rankInfo?.isRanked ?? false,
                                         currentRank: rankInfo?.rank ?? 0,
-                                        currentScore: rankInfo?.score ?? 0.0
+                                        currentScore: rankInfo?.score ?? 0.0,
+                                        searchType: searchType // Pass the search type
                                     )
                                     .padding(.horizontal)
                                 }
@@ -123,7 +115,8 @@ struct SearchResultsView: View {
             
         case .album:
             let album = musicAPI.convertToAlbum(item)
-            // Instead of adding to pinned albums, we'll start the rating process
+            // Start the rating process regardless of whether it's already rated
+            // If it's already rated, the overlay will show current rating
             albumRatingManager.rateAlbum(album)
             presentationMode.wrappedValue.dismiss()
             

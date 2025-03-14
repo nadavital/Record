@@ -1,11 +1,3 @@
-//
-//  RateAlbumOverlayView.swift
-//  record
-//
-//  Created by Nadav Avital on 3/13/25.
-//
-
-
 import SwiftUI
 
 struct RateAlbumOverlayView: View {
@@ -16,10 +8,20 @@ struct RateAlbumOverlayView: View {
     @State private var review: String = ""
     @State private var isSubmitting = false
     
-    // Check if this album is already rated
+    // Check if this album is already rated - by title and artist
     private var existingRating: AlbumRating? {
         guard let album = albumRatingManager.currentAlbum else { return nil }
-        return albumRatingManager.getRating(forAlbumId: album.id.uuidString)
+        
+        // First try looking up by ID
+        if let rating = albumRatingManager.getRating(forAlbumId: album.id.uuidString) {
+            return rating
+        }
+        
+        // Then try matching by title and artist (needed for search results)
+        return albumRatingManager.albumRatings.first { rating in
+            rating.title.lowercased() == album.title.lowercased() &&
+            rating.artist.lowercased() == album.artist.lowercased()
+        }
     }
     
     var body: some View {
@@ -155,17 +157,25 @@ struct RateAlbumOverlayView: View {
         
         isSubmitting = true
         
+        // Get existing rating if available (by title and artist too)
+        let existing = existingRating
+        
         // Create or update rating
         let albumRating = AlbumRating(
-            id: existingRating?.id ?? UUID(),
+            id: existing?.id ?? UUID(),
             albumId: album.id.uuidString,
             title: album.title,
             artist: album.artist,
             rating: rating,
             review: review,
-            dateAdded: existingRating?.dateAdded ?? Date(),
+            dateAdded: existing?.dateAdded ?? Date(),
             artworkURL: album.artworkURL
         )
+        
+        // If there was an existing rating with a different ID, delete it first to prevent duplicates
+        if let existing = existing, existing.albumId != album.id.uuidString {
+            albumRatingManager.deleteRating(existing)
+        }
         
         // Save to persistent storage
         albumRatingManager.saveRating(albumRating)
