@@ -7,6 +7,7 @@ struct RateAlbumOverlayView: View {
     @State private var rating: Double = 0.0
     @State private var review: String = ""
     @State private var isSubmitting = false
+    @FocusState private var isReviewFocused: Bool
     
     // Check if this album is already rated - by title and artist
     private var existingRating: AlbumRating? {
@@ -25,14 +26,14 @@ struct RateAlbumOverlayView: View {
     }
     
     var body: some View {
-        // Full screen overlay that covers everything
+        // Cover the entire screen with a semi-transparent background
         ZStack {
-            // Dimmed background - extend to cover entire screen
+            // Dimmed background
             Color(.systemBackground)
                 .opacity(0.95)
-                .edgesIgnoringSafeArea(.all)
+                .ignoresSafeArea()
             
-            // Rating card
+            // Main card content
             VStack(spacing: 20) {
                 // X button in top corner
                 HStack {
@@ -88,6 +89,8 @@ struct RateAlbumOverlayView: View {
                     onTap: { newRating in
                         withAnimation(.spring()) {
                             rating = newRating
+                            // Dismiss keyboard when tapping stars
+                            isReviewFocused = false
                         }
                     },
                     size: 30,
@@ -111,6 +114,7 @@ struct RateAlbumOverlayView: View {
                             RoundedRectangle(cornerRadius: 8)
                                 .stroke(Color.gray.opacity(0.2), lineWidth: 1)
                         )
+                        .focused($isReviewFocused)
                 }
                 .padding(.horizontal)
                 
@@ -139,9 +143,22 @@ struct RateAlbumOverlayView: View {
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
             .shadow(color: Color(.sRGBLinear, white: 0, opacity: 0.2), radius: 15)
             .frame(maxWidth: 350)
+            .padding(.horizontal, 20)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .edgesIgnoringSafeArea(.all)
+        // Dismiss keyboard when tapping outside text field
+        .contentShape(Rectangle())
+        .onTapGesture {
+            isReviewFocused = false
+        }
+        // Add keyboard toolbar
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") {
+                    isReviewFocused = false
+                }
+            }
+        }
         .onAppear {
             // If album is already rated, load existing rating
             if let existing = existingRating {
@@ -153,6 +170,9 @@ struct RateAlbumOverlayView: View {
     
     private func saveRating() {
         guard rating > 0, let album = albumRatingManager.currentAlbum else { return }
+        
+        // Dismiss keyboard first
+        isReviewFocused = false
         
         isSubmitting = true
         
