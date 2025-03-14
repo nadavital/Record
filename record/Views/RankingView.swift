@@ -44,14 +44,16 @@ struct RankingView: View {
         NavigationStack {
             VStack(spacing: 8) {
                 CustomFilterBarView(selectedSegment: $selectedSegment, segmentTitles: segmentTitles)
+                    .padding(.horizontal)
                 
+                // Search bar
                 HStack {
                     Image(systemName: "magnifyingglass")
                         .foregroundColor(.secondary)
                         .padding(.leading, 8)
                     TextField("Search songs or artists", text: $searchText)
                         .padding(.vertical, 8)
-                    if !searchText.isEmpty {
+                    if (!searchText.isEmpty) {
                         Button(action: { searchText = "" }) {
                             Image(systemName: "xmark.circle.fill")
                                 .foregroundColor(.secondary)
@@ -78,6 +80,7 @@ struct RankingView: View {
                         Label("Add Song", systemImage: "plus")
                     }
                 }
+                
                 ToolbarItem(placement: .navigationBarLeading) {
                     if persistenceManager.isSyncing {
                         ProgressView()

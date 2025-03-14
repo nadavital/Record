@@ -21,19 +21,26 @@ struct ContentView: View {
                     }
                     .tag(0)
                 
+                ReviewView()
+                    .tabItem {
+                        Image(systemName: "square.stack")
+                        Text("Review")
+                    }
+                    .tag(1)
+                
                 StatisticsView()
                     .tabItem {
                         Image(systemName: "chart.bar")
                         Text("Stats")
                     }
-                    .tag(1)
+                    .tag(2)
                 
                 ProfileView()
                     .tabItem {
                         Image(systemName: "person.fill")
                         Text("Profile")
                     }
-                    .tag(2)
+                    .tag(3)
             }
             
             VStack {
