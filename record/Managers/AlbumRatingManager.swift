@@ -1,8 +1,5 @@
 //
-//  AlbumRatingManager.swift
-//  record
-//
-//  Created by Nadav Avital on 3/6/25.
+//  AlbumRatingManager.swift - Updated
 //
 
 import Foundation
@@ -11,6 +8,8 @@ import Combine
 
 class AlbumRatingManager: ObservableObject {
     @Published var albumRatings: [AlbumRating] = []
+    @Published var currentAlbum: Album? = nil
+    @Published var showRatingView: Bool = false
     
     // Track subscriptions for cleanup
     private var cancellables = Set<AnyCancellable>()
@@ -31,6 +30,18 @@ class AlbumRatingManager: ObservableObject {
     // Load saved ratings from persistence
     private func loadSavedRatings() {
         self.albumRatings = PersistenceManager.shared.loadAlbumRatings()
+    }
+    
+    // Start rating process for an album
+    func rateAlbum(_ album: Album) {
+        currentAlbum = album
+        showRatingView = true
+    }
+    
+    // Cancel the rating process
+    func cancelRating() {
+        currentAlbum = nil
+        showRatingView = false
     }
     
     // Get rating for a specific album

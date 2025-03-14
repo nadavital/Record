@@ -27,6 +27,7 @@ struct UnifiedSearchView: View {
     @Environment(\.presentationMode) var presentationMode
     @EnvironmentObject var profileManager: UserProfileManager
     @EnvironmentObject var rankingManager: MusicRankingManager
+    @EnvironmentObject var albumRatingManager: AlbumRatingManager // Add this
     @StateObject private var musicAPI = MusicAPIManager()
     
     @State private var searchText = ""
@@ -88,7 +89,12 @@ struct UnifiedSearchView: View {
                         .cornerRadius(10)
                         .padding(.horizontal)
                         
-                        SearchResultsView(musicAPI: musicAPI, searchText: $searchText, isSearching: $isSearching, searchType: searchType)
+                        SearchResultsView(
+                            musicAPI: musicAPI,
+                            searchText: $searchText,
+                            isSearching: $isSearching,
+                            searchType: searchType
+                        )
                     }
                 }
                 .navigationTitle(searchType.title)
@@ -154,10 +160,4 @@ struct UnifiedSearchView: View {
             }
         }
     }
-}
-
-#Preview {
-    UnifiedSearchView(searchType: .song)
-    .environmentObject(UserProfileManager())
-    .environmentObject(MusicRankingManager())
 }

@@ -1,11 +1,14 @@
 import SwiftUI
 
+import SwiftUI
+
 struct ContentView: View {
     @State private var selectedTab = 0
     @EnvironmentObject private var musicAPI: MusicAPIManager
     @EnvironmentObject private var rankingManager: MusicRankingManager
     @EnvironmentObject private var authManager: AuthManager
     @EnvironmentObject private var playerManager: MusicPlayerManager
+    @EnvironmentObject private var albumRatingManager: AlbumRatingManager // Add this
     @State private var statsLoadedInitially = false
     @State private var nowPlayingBarVisible = false
     @State private var isLoading = true
@@ -54,6 +57,7 @@ struct ContentView: View {
             .background(Color.clear)
             .zIndex(1)
             
+            // Song Rating Process Overlays
             if rankingManager.showSentimentPicker {
                 Color(.systemBackground)
                     .opacity(0.95)
@@ -71,6 +75,13 @@ struct ContentView: View {
                 SongComparisonView()
                     .transition(.opacity)
                     .zIndex(11)
+            }
+            
+            // Album Rating Overlay
+            if albumRatingManager.showRatingView {
+                RateAlbumOverlayView()
+                    .transition(.opacity)
+                    .zIndex(12)
             }
         }
         .task {

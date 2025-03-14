@@ -7,11 +7,18 @@
 
 import SwiftUI
 
+//
+//  SearchResultsView.swift - Corrected Update
+//
+
+import SwiftUI
+
 struct SearchResultsView: View {
     @Environment(\.presentationMode) var presentationMode
     @ObservedObject var musicAPI: MusicAPIManager
     @EnvironmentObject var rankingManager: MusicRankingManager
     @EnvironmentObject var profileManager: UserProfileManager
+    @EnvironmentObject var albumRatingManager: AlbumRatingManager
     @Binding var searchText: String
     @Binding var isSearching: Bool
     let searchType: SearchType
@@ -112,19 +119,23 @@ struct SearchResultsView: View {
         case .song:
             let song = musicAPI.convertToSong(item)
             rankingManager.addNewSong(song: song)
+            presentationMode.wrappedValue.dismiss()
+            
         case .album:
             let album = musicAPI.convertToAlbum(item)
-            profileManager.addPinnedAlbum(album)
+            // Instead of adding to pinned albums, we'll start the rating process
+            albumRatingManager.rateAlbum(album)
+            presentationMode.wrappedValue.dismiss()
+            
         case .artist:
             let artist = Artist(
                 name: item.artist,
                 artworkURL: musicAPI.getArtworkURL(for: item.artworkID)
             )
             profileManager.addPinnedArtist(artist)
+            presentationMode.wrappedValue.dismiss()
         }
-        presentationMode.wrappedValue.dismiss()
     }
-    
 }
 
 #Preview("No Results") {
