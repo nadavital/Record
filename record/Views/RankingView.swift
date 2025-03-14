@@ -82,11 +82,18 @@ struct RankingView: View {
                 .cornerRadius(10)
                 .padding(.horizontal)
                 
-                RankedSongListView(
-                    filteredSongs: filteredSongs,
-                    searchText: searchText,
-                    onAddSong: { showAddSongSheet = true }
-                )
+                if rankingManager.rankedSongs.isEmpty {
+                    CustomEmptyStateView {
+                        Text("No ranked songs yet")
+                        Text("Add songs to start ranking them")
+                    }
+                } else {
+                    RankedSongListView(
+                        filteredSongs: filteredSongs,
+                        searchText: searchText,
+                        onAddSong: { showAddSongSheet = true }
+                    )
+                }
             }
             .navigationTitle("Ranked Songs")
             .toolbar {

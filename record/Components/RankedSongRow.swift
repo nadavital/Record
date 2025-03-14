@@ -47,8 +47,6 @@ struct RankedSongRow: View {
                     .foregroundStyle(color(for: song.sentiment))
             }
             .padding(.vertical, 8)
-            .padding(.horizontal)
-            .background(Color(UIColor.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 10))
         }
         .contextMenu {
             Button(role: .destructive) { withAnimation { onDelete(song) } } label: { Label("Delete", systemImage: "trash") }

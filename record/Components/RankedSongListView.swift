@@ -19,7 +19,7 @@ struct RankedSongListView: View {
                 .listRowBackground(Color.clear)
                 .listRowInsets(EdgeInsets())
         } else {
-            List{
+            List {
                 ForEach(filteredSongs) { song in
                     RankedSongRow(
                         rank: (rankingManager.rankedSongs.firstIndex(where: { $0.id == song.id }) ?? -1) + 1,
@@ -31,13 +31,11 @@ struct RankedSongListView: View {
                             rankingManager.addNewSong(song: song)
                         }
                     )
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
                 }
+                
                 // Padding at the bottom for now playing bar
                 Color.clear
                     .frame(height: 80)
-                    .listRowInsets(EdgeInsets())
             }
             .listStyle(.plain)
             .animation(.easeOut(duration: 0.2), value: filteredSongs)

@@ -120,6 +120,10 @@ struct RankedAlbumsView: View {
                             .padding(.vertical, 4)
                         }
                     }
+                    
+                    // Padding at the bottom for now playing bar
+                    Color.clear
+                        .frame(height: 80)
                 }
                 .listStyle(.plain)
             }
