@@ -6,13 +6,17 @@ struct AlbumInfoView: View {
     @EnvironmentObject var rankingManager: MusicRankingManager
     @EnvironmentObject var albumRatingManager: AlbumRatingManager
     @StateObject private var viewModel: AlbumInfoViewModel
+    @Environment(\.dismiss) private var dismiss
     
     let album: Album
+    let isPresentedAsSheet: Bool
     
     @State private var selectedTrack: Track?
+    @State private var shouldRateAfterDismiss = false
     
-    init(album: Album, musicAPI: MusicAPIManager) {
+    init(album: Album, musicAPI: MusicAPIManager, isPresentedAsSheet: Bool = false) {
         self.album = album
+        self.isPresentedAsSheet = isPresentedAsSheet
         _viewModel = StateObject(wrappedValue: AlbumInfoViewModel(musicAPI: musicAPI))
     }
     
@@ -177,6 +181,14 @@ struct AlbumInfoView: View {
         .onAppear {
             loadAlbumDetails()
         }
+        .onChange(of: shouldRateAfterDismiss) { newValue in
+            if newValue {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    rateAlbumDirectly()
+                    shouldRateAfterDismiss = false
+                }
+            }
+        }
     }
     
     // MARK: - Helpers
@@ -189,6 +201,17 @@ struct AlbumInfoView: View {
     }
     
     private func showRatingOverlay() {
+        if isPresentedAsSheet {
+            // First dismiss the sheet, then show the rating overlay
+            shouldRateAfterDismiss = true
+            dismiss()
+        } else {
+            // Show the rating overlay directly if not in a sheet
+            rateAlbumDirectly()
+        }
+    }
+    
+    private func rateAlbumDirectly() {
         // First check if this album has an existing rating
         if let existingRating = albumRatingManager.getRating(forAlbumId: album.id.uuidString) {
             // Create an album with the same ID to ensure we find the match

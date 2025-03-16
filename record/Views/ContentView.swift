@@ -1,7 +1,5 @@
 import SwiftUI
 
-import SwiftUI
-
 struct ContentView: View {
     @State private var selectedTab = 0
     @EnvironmentObject private var musicAPI: MusicAPIManager
@@ -126,7 +124,8 @@ struct ContentView: View {
                             albumArt: song.albumArt,
                             artworkURL: song.artworkURL
                         ),
-                        musicAPI: musicAPI
+                        musicAPI: musicAPI,
+                        isPresentedAsSheet: true
                     )
                     .environmentObject(musicAPI)
                     .environmentObject(rankingManager)
