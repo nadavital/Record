@@ -1,5 +1,4 @@
 import Foundation
-import MediaPlayer
 import MusicKit
 
 class SongInfoViewModel: ObservableObject {
@@ -16,9 +15,9 @@ class SongInfoViewModel: ObservableObject {
         self.rankingManager = rankingManager
     }
     
-    func loadSongInfo(from mediaItem: MPMediaItem) async {
+    func loadSongInfo(from musicKitSong: MusicKit.Song) async {
         await MainActor.run { isLoading = true }
-        let (song, album) = await createUnifiedSong(from: mediaItem)
+        let (song, album) = await createUnifiedSong(from: musicKitSong)
         await MainActor.run {
             self.unifiedSong = song
             self.associatedAlbum = album
@@ -44,27 +43,20 @@ class SongInfoViewModel: ObservableObject {
         }
     }
     
-    private func createUnifiedSong(from mediaItem: MPMediaItem) async -> (UnifiedSong, MusicKit.Album?) {
-        let title = mediaItem.title ?? "Unknown Title"
-        let artist = mediaItem.artist ?? "Unknown Artist"
-        let albumTitle = mediaItem.albumTitle ?? "Unknown Album"
+    private func createUnifiedSong(from musicKitSong: MusicKit.Song) async -> (UnifiedSong, MusicKit.Album?) {
+        await MainActor.run { isLoading = true }
         
-        // First, try to get artwork from MPMediaItem directly
+        let title = musicKitSong.title
+        let artist = musicKitSong.artistName
+        let albumTitle = musicKitSong.albumTitle ?? "Unknown Album"
+        
+        // Get artwork URL from the song
         var artworkURL: URL? = nil
-        if let artwork = mediaItem.artwork,
-           let image = artwork.image(at: CGSize(width: 300, height: 300)) {
-           // Create a temporary file URL for the image
-           let tempDir = FileManager.default.temporaryDirectory
-           let fileName = "\(UUID().uuidString).jpg"
-           let fileURL = tempDir.appendingPathComponent(fileName)
-           
-           if let jpegData = image.jpegData(compressionQuality: 0.8) {
-               try? jpegData.write(to: fileURL)
-               artworkURL = fileURL
-           }
+        if let artwork = musicKitSong.artwork {
+            artworkURL = artwork.url(width: 300, height: 300)
         }
         
-        // If no artwork from MPMediaItem, check if we have it cached
+        // If no artwork from MusicKit song, check if we have it cached
         if artworkURL == nil {
             // Try to find it in musicAPI's artwork cache
             let cacheKey = "\(title)-\(artist)".lowercased()
@@ -91,15 +83,28 @@ class SongInfoViewModel: ObservableObject {
             print("Failed to fetch MusicKit album: \(error)")
         }
         
+        // Get play count from the API's listening history data
+        var playCount = 0
+        var lastPlayedDate: Date? = nil
+        let historyItem = await musicAPI.listeningHistory.first { item in 
+            item.title.lowercased() == title.lowercased() && 
+            item.artist.lowercased() == artist.lowercased()
+        }
+        
+        if let historyItem = historyItem {
+            playCount = historyItem.playCount
+            lastPlayedDate = historyItem.lastPlayedDate
+        }
+        
         return (
             UnifiedSong(
                 title: title,
                 artist: artist,
                 album: albumTitle,
-                playCount: mediaItem.playCount,
-                lastPlayedDate: mediaItem.lastPlayedDate,
-                releaseDate: mediaItem.releaseDate ?? musicKitAlbum?.releaseDate,
-                genre: mediaItem.genre ?? musicKitAlbum?.genres?.first?.name,
+                playCount: playCount,
+                lastPlayedDate: lastPlayedDate,
+                releaseDate: musicKitAlbum?.releaseDate,
+                genre: musicKitAlbum?.genres?.first?.name,
                 artworkURL: artworkURL,
                 isRanked: rankedSong != nil,
                 rank: rankedSong != nil ? (rankingManager.rankedSongs.firstIndex(of: rankedSong!)! + 1) : nil,
@@ -120,24 +125,6 @@ class SongInfoViewModel: ObservableObject {
         
         var playCount = 0
         var lastPlayedDate: Date?
-        let query = MPMediaQuery.songs()
-        let titlePredicate = MPMediaPropertyPredicate(
-            value: song.title,
-            forProperty: MPMediaItemPropertyTitle,
-            comparisonType: .equalTo
-        )
-        let artistPredicate = MPMediaPropertyPredicate(
-            value: song.artist,
-            forProperty: MPMediaItemPropertyArtist,
-            comparisonType: .equalTo
-        )
-        query.addFilterPredicate(titlePredicate)
-        query.addFilterPredicate(artistPredicate)
-        if let mediaItem = query.items?.first {
-            playCount = mediaItem.playCount
-            lastPlayedDate = mediaItem.lastPlayedDate
-        }
-        
         var musicKitAlbum: MusicKit.Album?
         var releaseDate: Date?
         var genre: String?
@@ -156,26 +143,39 @@ class SongInfoViewModel: ObservableObject {
                     releaseDate = musicKitAlbum?.releaseDate
                     genre = musicKitAlbum?.genres?.first?.name
                 }
+                
+                // Get play count from the API's listening history data
+                let historyItem = await musicAPI.listeningHistory.first { item in 
+                    item.title.lowercased() == song.title.lowercased() && 
+                    item.artist.lowercased() == song.artist.lowercased()
+                }
+                
+                if let historyItem = historyItem {
+                    playCount = historyItem.playCount
+                    lastPlayedDate = historyItem.lastPlayedDate
+                }
+                
             } catch {
-                print("Failed to fetch MusicKit album: \(error)")
+                print("Error fetching MusicKit data: \(error)")
             }
         }
         
-        let unifiedSong = UnifiedSong(
-            title: song.title,
-            artist: song.artist,
-            album: correctedAlbumTitle,
-            playCount: playCount,
-            lastPlayedDate: lastPlayedDate,
-            releaseDate: releaseDate,
-            genre: genre,
-            artworkURL: song.artworkURL ?? musicKitAlbum?.artwork?.url(width: 300, height: 300),
-            isRanked: rankedSong != nil,
-            rank: rankedSong != nil ? (rankingManager.rankedSongs.firstIndex(of: rankedSong!)! + 1) : nil,
-            score: rankedSong?.score,
-            sentiment: rankedSong?.sentiment
+        return (
+            UnifiedSong(
+                title: song.title,
+                artist: song.artist,
+                album: correctedAlbumTitle,
+                playCount: playCount,
+                lastPlayedDate: lastPlayedDate,
+                releaseDate: releaseDate ?? musicKitAlbum?.releaseDate,
+                genre: genre ?? musicKitAlbum?.genres?.first?.name,
+                artworkURL: song.artworkURL,
+                isRanked: rankedSong != nil,
+                rank: rankedSong != nil ? (rankingManager.rankedSongs.firstIndex(of: rankedSong!)! + 1) : nil,
+                score: rankedSong?.score,
+                sentiment: rankedSong?.sentiment
+            ),
+            musicKitAlbum
         )
-        print("UnifiedSong from Song: title=\(song.title), album=\(correctedAlbumTitle)")
-        return (unifiedSong, musicKitAlbum)
     }
 }

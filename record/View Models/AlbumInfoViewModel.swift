@@ -1,7 +1,6 @@
 import Foundation
 import SwiftUI
 import MusicKit
-import MediaPlayer
 
 class AlbumInfoViewModel: ObservableObject {
     @Published var albumDetails: MusicKit.Album?
@@ -29,7 +28,7 @@ class AlbumInfoViewModel: ObservableObject {
                     let detailedAlbum = try await fetchedAlbum.with([.tracks])
                     let tracks = detailedAlbum.tracks ?? []
                     
-                    // Calculate total play count from local library
+                    // Calculate total play count from MusicKit listening history
                     let playCount = await calculateTotalPlayCount(for: tracks)
                     
                     await MainActor.run {
@@ -55,41 +54,37 @@ class AlbumInfoViewModel: ObservableObject {
     
     private func calculateTotalPlayCount(for tracks: MusicItemCollection<Track>) async -> Int {
         var total = 0
+        
+        // Use the listening history from MusicAPI to calculate play counts
         for track in tracks {
-            let query = MPMediaQuery.songs()
-            let titlePredicate = MPMediaPropertyPredicate(
-                value: track.title,
-                forProperty: MPMediaItemPropertyTitle,
-                comparisonType: .equalTo
-            )
-            let artistPredicate = MPMediaPropertyPredicate(
-                value: track.artistName,
-                forProperty: MPMediaItemPropertyArtist,
-                comparisonType: .equalTo
-            )
-            query.addFilterPredicate(titlePredicate)
-            query.addFilterPredicate(artistPredicate)
-            if let mediaItem = query.items?.first {
-                total += mediaItem.playCount
+            let historyItem = await musicAPI.listeningHistory.first { item in
+                item.title.lowercased() == track.title.lowercased() &&
+                item.artist.lowercased() == track.artistName.lowercased()
+            }
+            
+            if let historyItem = historyItem {
+                total += historyItem.playCount
             }
         }
+        
         return total
     }
     
+    // Add methods for getting ranked and unranked songs
     func getRankedSongs(rankingManager: MusicRankingManager) -> [Track] {
         return albumSongs.filter { track in
-            rankingManager.rankedSongs.contains { rankedSong in
-                rankedSong.title.lowercased() == track.title.lowercased() &&
-                rankedSong.artist.lowercased() == track.artistName.lowercased()
+            rankingManager.rankedSongs.contains { song in
+                song.title.lowercased() == track.title.lowercased() &&
+                song.artist.lowercased() == track.artistName.lowercased()
             }
         }
     }
     
     func getUnrankedSongs(rankingManager: MusicRankingManager) -> [Track] {
         return albumSongs.filter { track in
-            !rankingManager.rankedSongs.contains { rankedSong in
-                rankedSong.title.lowercased() == track.title.lowercased() &&
-                rankedSong.artist.lowercased() == track.artistName.lowercased()
+            !rankingManager.rankedSongs.contains { song in
+                song.title.lowercased() == track.title.lowercased() &&
+                song.artist.lowercased() == track.artistName.lowercased()
             }
         }
     }

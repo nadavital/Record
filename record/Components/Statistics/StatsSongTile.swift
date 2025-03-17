@@ -7,7 +7,7 @@
 
 import SwiftUI
 import Foundation
-import MediaPlayer
+import MusicKit
 
 struct StatsSongTile: View {
     @EnvironmentObject private var musicAPI: MusicAPIManager
@@ -20,7 +20,7 @@ struct StatsSongTile: View {
                 if let artworkImage = musicAPI.getArtworkImage(for: song) {
                     Image(uiImage: artworkImage).resizable().scaledToFill()
                 } else {
-                    RemoteArtworkView(artworkURL: nil, placeholderText: song.title, size: CGSize(width: 110, height: 110))
+                    RemoteArtworkView(artworkURL: musicAPI.getArtworkURL(for: song.artworkID), placeholderText: song.title, size: CGSize(width: 110, height: 110))
                 }
             }
             .frame(width: 110, height: 110)
@@ -38,14 +38,16 @@ struct StatsSongTile: View {
 }
 
 #Preview {
-    let song = ListeningHistoryItem(id: "",
-                                title: "LIFETIMES",
-                                artist: "Katy Perry",
-                                albumName: "143",
-                                artworkID: "",
-                                lastPlayedDate: Date.now,
-                                playCount: 143,
-                                mediaItem: MPMediaItem())
-    StatsSongTile(song: song, count: song.playCount)
+    let song = ListeningHistoryItem(
+        id: "preview-id",
+        title: "LIFETIMES",
+        artist: "Katy Perry",
+        albumName: "143",
+        artworkID: "preview-artwork-id",
+        lastPlayedDate: Date.now,
+        playCount: 143,
+        musicKitId: nil
+    )
+    return StatsSongTile(song: song, count: song.playCount)
         .environmentObject(MusicAPIManager())
 }

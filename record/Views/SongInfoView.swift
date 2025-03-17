@@ -1,5 +1,4 @@
 import SwiftUI
-import MediaPlayer
 import MusicKit
 
 struct SongInfoView: View {
@@ -16,7 +15,7 @@ struct SongInfoView: View {
         case sheetFromNowPlaying
     }
     
-    private let mediaItem: MPMediaItem?
+    private let musicKitSong: MusicKit.Song?
     private let rankedSong: Song?
     @State private var reRankedSong: Song?
     private let onReRankButtonTapped: (() -> Void)?
@@ -26,7 +25,7 @@ struct SongInfoView: View {
     @State private var albumToShow: Album? = nil
     
     init(
-        mediaItem: MPMediaItem? = nil,
+        musicKitSong: MusicKit.Song? = nil,
         rankedSong: Song? = nil,
         musicAPI: MusicAPIManager,
         rankingManager: MusicRankingManager,
@@ -34,12 +33,16 @@ struct SongInfoView: View {
         onReRankButtonTapped: (() -> Void)? = nil,
         onShowAlbum: (() -> Void)? = nil
     ) {
-        self._viewModel = StateObject(wrappedValue: SongInfoViewModel(musicAPI: musicAPI, rankingManager: rankingManager))
-        self.mediaItem = mediaItem
+        self.musicKitSong = musicKitSong
         self.rankedSong = rankedSong
         self.presentationStyle = presentationStyle
         self.onReRankButtonTapped = onReRankButtonTapped
         self.onShowAlbum = onShowAlbum
+        
+        _viewModel = StateObject(wrappedValue: SongInfoViewModel(
+            musicAPI: musicAPI,
+            rankingManager: rankingManager
+        ))
     }
     
     var body: some View {
@@ -76,15 +79,11 @@ struct SongInfoView: View {
                         .environmentObject(playerManager)
                 }
             }
-            .onAppear {
-                Task {
-                    if let mediaItem = mediaItem {
-                        await viewModel.loadSongInfo(from: mediaItem)
-                    } else if let rankedSong = rankedSong {
-                        await viewModel.loadSongInfo(from: rankedSong)
-                    } else {
-                        assertionFailure("No song data provided")
-                    }
+            .task {
+                if let song = musicKitSong {
+                    await viewModel.loadSongInfo(from: song)
+                } else if let song = rankedSong {
+                    await viewModel.loadSongInfo(from: song)
                 }
             }
             .onChange(of: rankingManager.isRanking) {
@@ -142,8 +141,8 @@ struct SongInfoView: View {
         // Small delay to ensure the previous song is properly paused
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
             // Start the new song
-            if let mediaItem = self.mediaItem {
-                self.playerManager.playSong(mediaItem: mediaItem)
+            if let musicKitSong = self.musicKitSong {
+                self.playerManager.playSong(mediaItem: musicKitSong)
             } else if let rankedSong = self.rankedSong {
                 self.playerManager.playSong(title: rankedSong.title, artist: rankedSong.artist) { success in
                     if !success {

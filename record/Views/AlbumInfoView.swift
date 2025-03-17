@@ -113,7 +113,7 @@ struct AlbumInfoView: View {
                             .italic()
                             .frame(maxWidth: .infinity, alignment: .center)
                     } else {
-                        let rankedSongs = sortedRankedSongs()
+                        let rankedSongs = viewModel.getRankedSongs(rankingManager: rankingManager)
                         let unrankedSongs = viewModel.getUnrankedSongs(rankingManager: rankingManager)
                         
                         if !rankedSongs.isEmpty {

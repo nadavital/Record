@@ -70,38 +70,11 @@ struct recordApp: App {
     // Check if we need to show username prompt
     private func checkIfUsernameNeeded() {
         if let userId = authManager.userId,
-           let cachedUsername = UserDefaults.standard.string(forKey: "cachedUsername_\(userId)"),
-           !cachedUsername.isEmpty {
-            print("Found cached username '\(cachedUsername)' - no need to show prompt")
-            if authManager.username == nil || authManager.username!.isEmpty {
-                authManager.username = cachedUsername
-            }
-            userProfileManager.username = cachedUsername
-            return
-        }
-        
-        if authManager.isAuthenticated {
-            if authManager.username == nil || authManager.username!.isEmpty {
-                print("User needs to set a username - showing prompt")
-                if let userId = authManager.userId {
-                    authManager.fetchUserData(for: userId) {
-                        DispatchQueue.main.async {
-                            if self.authManager.username == nil || self.authManager.username!.isEmpty {
-                                self.showUsernamePrompt = true
-                            } else {
-                                self.userProfileManager.username = self.authManager.username!
-                            }
-                        }
-                    }
-                } else {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        self.showUsernamePrompt = true
-                    }
-                }
-            } else {
-                print("User already has username: \(authManager.username!)")
-                userProfileManager.username = authManager.username!
-            }
+           (authManager.username?.isEmpty ?? true) {
+            showUsernamePrompt = true
+        } else if let username = authManager.username, !username.isEmpty {
+            print("User already has username: \(authManager.username!)")
+            userProfileManager.username = authManager.username!
         }
     }
     

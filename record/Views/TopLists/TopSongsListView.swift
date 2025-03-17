@@ -16,7 +16,11 @@ struct TopSongsListView: View {
     var body: some View {
         List {
             ForEach(Array(songs.enumerated()), id: \.element.song.id) { index, item in
-                NavigationLink(destination: SongInfoView(mediaItem: item.song.mediaItem, musicAPI: musicAPI, rankingManager: rankingManager)) {
+                NavigationLink {
+                    SongSearchAndInfoView(title: item.song.title, artist: item.song.artist)
+                        .environmentObject(musicAPI)
+                        .environmentObject(rankingManager)
+                } label: {
                     HStack(spacing: 12) {
                         Text("#\(index + 1)")
                             .foregroundStyle(.secondary)
@@ -42,7 +46,11 @@ struct TopSongsListView: View {
                 if let artworkImage = musicAPI.getArtworkImage(for: song) {
                     Image(uiImage: artworkImage).resizable().scaledToFill()
                 } else {
-                    RemoteArtworkView(artworkURL: nil, placeholderText: song.title, size: CGSize(width: 16, height: 16))
+                    RemoteArtworkView(
+                        artworkURL: musicAPI.getArtworkURL(for: song.artworkID), 
+                        placeholderText: song.title, 
+                        size: CGSize(width: 50, height: 50)
+                    )
                 }
             }
             .frame(width: 50, height: 50)

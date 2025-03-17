@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import MediaPlayer
+import MusicKit
 
 struct ListeningHistoryItem: Identifiable {
     let id: String
@@ -16,5 +16,5 @@ struct ListeningHistoryItem: Identifiable {
     let artworkID: String
     let lastPlayedDate: Date?
     let playCount: Int
-    let mediaItem: MPMediaItem // Added to store the full MPMediaItem
+    let musicKitId: MusicItemID? // MusicKit identifier instead of MediaPlayer item
 }

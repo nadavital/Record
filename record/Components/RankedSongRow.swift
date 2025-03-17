@@ -17,7 +17,7 @@ struct RankedSongRow: View {
     @EnvironmentObject private var rankingManager: MusicRankingManager
     
     var body: some View {
-        NavigationLink(destination: SongInfoView(mediaItem: nil, rankedSong: song, musicAPI: musicAPI, rankingManager: rankingManager)) {
+        NavigationLink(destination: SongInfoView(rankedSong: song, musicAPI: musicAPI, rankingManager: rankingManager)) {
             HStack {
                 RemoteArtworkView(
                     artworkURL: song.artworkURL,
