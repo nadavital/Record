@@ -49,6 +49,28 @@ class SongInfoViewModel: ObservableObject {
         let artist = mediaItem.artist ?? "Unknown Artist"
         let albumTitle = mediaItem.albumTitle ?? "Unknown Album"
         
+        // First, try to get artwork from MPMediaItem directly
+        var artworkURL: URL? = nil
+        if let artwork = mediaItem.artwork,
+           let image = artwork.image(at: CGSize(width: 300, height: 300)) {
+           // Create a temporary file URL for the image
+           let tempDir = FileManager.default.temporaryDirectory
+           let fileName = "\(UUID().uuidString).jpg"
+           let fileURL = tempDir.appendingPathComponent(fileName)
+           
+           if let jpegData = image.jpegData(compressionQuality: 0.8) {
+               try? jpegData.write(to: fileURL)
+               artworkURL = fileURL
+           }
+        }
+        
+        // If no artwork from MPMediaItem, check if we have it cached
+        if artworkURL == nil {
+            // Try to find it in musicAPI's artwork cache
+            let cacheKey = "\(title)-\(artist)".lowercased()
+            artworkURL = await musicAPI.getArtworkURL(for: cacheKey)
+        }
+        
         // Fetch ranked song
         let rankedSong = rankingManager.rankedSongs.first { ranked in
             ranked.title.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == title.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() &&
@@ -78,7 +100,7 @@ class SongInfoViewModel: ObservableObject {
                 lastPlayedDate: mediaItem.lastPlayedDate,
                 releaseDate: mediaItem.releaseDate ?? musicKitAlbum?.releaseDate,
                 genre: mediaItem.genre ?? musicKitAlbum?.genres?.first?.name,
-                artworkURL: mediaItem.artwork?.image(at: CGSize(width: 300, height: 300))?.jpegData(compressionQuality: 1.0).flatMap { URL(dataRepresentation: $0, relativeTo: nil) } ?? musicKitAlbum?.artwork?.url(width: 300, height: 300),
+                artworkURL: artworkURL,
                 isRanked: rankedSong != nil,
                 rank: rankedSong != nil ? (rankingManager.rankedSongs.firstIndex(of: rankedSong!)! + 1) : nil,
                 score: rankedSong?.score,
