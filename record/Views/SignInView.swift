@@ -32,15 +32,13 @@ struct SignInView: View {
                     
                     // App Icon
                     VStack(spacing: 16) {
-                        ZStack {
-                            Circle()
-                                .fill(.ultraThinMaterial)
-                                .frame(width: 120, height: 120)
-                            
-                            Image(systemName: "music.note.list")
-                                .font(.system(size: 40, weight: .semibold))
-                                .foregroundStyle(Color.accentColor)
-                        }
+                        Image("recordIcon")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 100, height: 100)
+                            .cornerRadius(16)
+                            .shadow(radius: 10)
+                        
                         
                         VStack(spacing: 8) {
                             Text("Record")
