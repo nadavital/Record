@@ -82,28 +82,29 @@ struct RankingView: View {
                 .cornerRadius(10)
                 .padding(.horizontal)
                 
-                if rankingManager.rankedSongs.isEmpty {
-                    CustomEmptyStateView {
-                        Text("No ranked songs yet")
-                        Text("Add songs to start ranking them")
+                VStack {
+                    if rankingManager.rankedSongs.isEmpty {
+                        CustomEmptyStateView {
+                            Text("No ranked songs yet")
+                            Text("Add songs to start ranking them")
+                        }
+                    } else {
+                        RankedSongListView(
+                            filteredSongs: filteredSongs,
+                            searchText: searchText,
+                            onAddSong: { showAddSongSheet = true }
+                        )
                     }
-                } else {
-                    RankedSongListView(
-                        filteredSongs: filteredSongs,
-                        searchText: searchText,
-                        onAddSong: { showAddSongSheet = true }
-                    )
                 }
+                .animation(.easeOut(duration: 0.2), value: rankingManager.rankedSongs.isEmpty)
             }
             .navigationTitle("Ranked Songs")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     HStack(spacing: 12) {
                         Menu {
-                            ForEach([FilterOption.all, .loved, .fine, .disliked], id: \.self) { option in
-                                Button {
-                                    selectedFilter = option
-                                } label: {
+                            Picker(selection: $selectedFilter, label: Text("Sort by")) {
+                                ForEach([FilterOption.all, .loved, .fine, .disliked], id: \.self) { option in
                                     Label {
                                         Text(option.label)
                                     } icon: {
@@ -133,7 +134,7 @@ struct RankingView: View {
                 UnifiedSearchView(searchType: .song)
             }
             .refreshable {
-                if let userId = authManager.userId {
+                if authManager.userId != nil {
                     await withCheckedContinuation { continuation in
                         persistenceManager.syncWithCloudKit { _ in
                             continuation.resume()

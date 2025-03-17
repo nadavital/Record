@@ -101,6 +101,36 @@ class CloudKitSyncManager: ObservableObject {
         }
     }
     
+    /// Delete ranked songs from CloudKit when list becomes empty
+    func deleteRankedSongs(userId: String, completion: ((Error?) -> Void)? = nil) {
+        let predicate = NSPredicate(format: "userId == %@", userId)
+        let query = CKQuery(recordType: RecordType.rankedSongs, predicate: predicate)
+        
+        privateDatabase.perform(query, inZoneWith: nil) { [weak self] (records, error) in
+            guard let self = self else { return }
+            
+            if let error = error {
+                completion?(error)
+                return
+            }
+            
+            if let record = records?.first {
+                self.privateDatabase.delete(withRecordID: record.recordID) { (_, error) in
+                    if let error = error {
+                        print("Error deleting ranked songs record: \(error.localizedDescription)")
+                        completion?(error)
+                    } else {
+                        print("Successfully deleted ranked songs record")
+                        completion?(nil)
+                    }
+                }
+            } else {
+                // No record to delete
+                completion?(nil)
+            }
+        }
+    }
+    
     /// Save pinned albums to CloudKit
     func savePinnedAlbums(_ albums: [Album], userId: String, completion: ((Error?) -> Void)? = nil) {
         guard !albums.isEmpty else {
@@ -129,12 +159,35 @@ class CloudKitSyncManager: ObservableObject {
     
     /// Save album ratings to CloudKit
     func saveAlbumRatings(_ ratings: [AlbumRating], userId: String, completion: ((Error?) -> Void)? = nil) {
-        guard !ratings.isEmpty else {
-            // Skip empty data
-            completion?(nil)
+        // Get the record ID that would contain the ratings
+        let recordId = generateRecordId(forUserId: userId, recordType: RecordType.albumRatings)
+        let predicate = NSPredicate(format: "userId == %@", userId)
+        let query = CKQuery(recordType: RecordType.albumRatings, predicate: predicate)
+
+        // If ratings is empty, we should delete the record entirely
+        if ratings.isEmpty {
+            privateDatabase.perform(query, inZoneWith: nil) { [weak self] (records, error) in
+                guard let self = self else { return }
+                
+                if let record = records?.first {
+                    self.privateDatabase.delete(withRecordID: record.recordID) { (_, error) in
+                        if let error = error {
+                            print("Error deleting empty ratings record: \(error.localizedDescription)")
+                            completion?(error)
+                        } else {
+                            print("Successfully deleted empty ratings record")
+                            completion?(nil)
+                        }
+                    }
+                } else {
+                    // No record to delete
+                    completion?(nil)
+                }
+            }
             return
         }
-        
+
+        // Otherwise proceed with normal save
         saveDataAsAsset(ratings, userId: userId, recordType: RecordType.albumRatings) { error in
             completion?(error)
         }

@@ -295,7 +295,7 @@ struct SettingsView: View {
     }
     
     private func syncData() {
-        guard let userId = authManager.userId else { return }
+        guard authManager.userId != nil else { return }
         
         showSyncingIndicator = true
         

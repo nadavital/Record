@@ -142,6 +142,15 @@ class AuthManager: NSObject, ObservableObject {
         let userIdentifier = credential.user
         print("Handling Apple sign in for user: \(userIdentifier)")
         
+        // Check immediately if we have a cached username before anything else
+        if let cachedUsername = UserDefaults.standard.string(forKey: "cachedUsername_\(userIdentifier)"),
+           !cachedUsername.isEmpty {
+            print("IMPORTANT: Found cached username right away: \(cachedUsername)")
+            DispatchQueue.main.async {
+                self.username = cachedUsername
+            }
+        }
+        
         // Validate the credential
         validateAppleCredential(userIdentifier: userIdentifier) { [weak self] isValid in
             guard let self = self else { return }
@@ -248,6 +257,14 @@ class AuthManager: NSObject, ObservableObject {
                 
                 existingRecord["lastSignIn"] = Date()
                 
+                // Restore username if it exists
+                if let username = existingRecord["username"] as? String, !username.isEmpty {
+                    DispatchQueue.main.async {
+                        self.username = username
+                        UserDefaults.standard.set(username, forKey: "cachedUsername_\(userId)")
+                    }
+                }
+                
                 self.container.privateCloudDatabase.save(existingRecord) { (_, error) in
                     if let error = error {
                         print("Error updating user: \(error.localizedDescription)")
@@ -292,6 +309,15 @@ class AuthManager: NSObject, ObservableObject {
     func fetchUserData(for userId: String, completion: (() -> Void)? = nil) {
         print("Fetching user data for userId: \(userId)")
         
+        // Check local cache first - if we have it, set it immediately
+        if let cachedUsername = UserDefaults.standard.string(forKey: "cachedUsername_\(userId)"),
+           !cachedUsername.isEmpty {
+            print("CRITICAL: Using cached username: \(cachedUsername)")
+            DispatchQueue.main.async {
+                self.username = cachedUsername
+            }
+        }
+        
         self.isLoading = true
         
         let predicate = NSPredicate(format: "userId == %@", userId)
@@ -314,10 +340,6 @@ class AuthManager: NSObject, ObservableObject {
                         print("Found username in CloudKit: \(username)")
                         self.username = username
                         UserDefaults.standard.set(username, forKey: "cachedUsername_\(userId)")
-                    } else {
-                        print("No username found in user record")
-                        self.username = nil
-                        UserDefaults.standard.removeObject(forKey: "cachedUsername_\(userId)")
                     }
                     
                     if let email = record["email"] as? String {
@@ -514,18 +536,35 @@ class AuthManager: NSObject, ObservableObject {
     
     func signOut() {
         print("Signing out")
-        // Clear local auth state
-        clearUserData()
+        // Clear local auth state but preserve the username cache
+        let userId = self.userId
+        let username = self.username
+        
+        // Instead of completely clearing user data, preserve the username cache
+        UserDefaults.standard.removeObject(forKey: "appleUserIdentifier")
+        
+        // If we have both userId and username, cache it so it's available after sign in
+        if let userId = userId, let username = username, !username.isEmpty {
+            UserDefaults.standard.set(username, forKey: "cachedUsername_\(userId)")
+            print("Preserved username cache during sign out: \(username) for user \(userId)")
+        }
+        
+        DispatchQueue.main.async {
+            self.isAuthenticated = false
+            self.userId = nil
+            self.username = nil
+            self.email = nil
+        }
     }
     
     private func clearUserData() {
         print("Clearing user data")
         let userIdentifier = UserDefaults.standard.string(forKey: "appleUserIdentifier")
         
-        // Remove cached username if it exists
-        if let userId = userIdentifier {
-            UserDefaults.standard.removeObject(forKey: "cachedUsername_\(userId)")
-        }
+        // We're not removing cached username anymore to preserve it between sign-ins
+        // if let userId = userIdentifier {
+        //     UserDefaults.standard.removeObject(forKey: "cachedUsername_\(userId)")
+        // }
         
         UserDefaults.standard.removeObject(forKey: "appleUserIdentifier")
         

@@ -55,12 +55,24 @@ class PersistenceManager: ObservableObject {
         
         // Sync to CloudKit if needed
         if syncToCloud, let userId = AuthManager.shared.userId {
-            CloudKitSyncManager.shared.saveRankedSongs(songs, userId: userId) { error in
-                if let error = error {
-                    print("Failed to sync ranked songs to CloudKit: \(error.localizedDescription)")
-                } else {
-                    print("Successfully synced ranked songs to CloudKit")
-                    self.updateLastSyncDate()
+            // If there are no songs, we need to delete the CloudKit record
+            if songs.isEmpty {
+                CloudKitSyncManager.shared.deleteRankedSongs(userId: userId) { error in
+                    if let error = error {
+                        print("Failed to delete ranked songs from CloudKit: \(error.localizedDescription)")
+                    } else {
+                        print("Successfully deleted ranked songs from CloudKit")
+                        self.updateLastSyncDate()
+                    }
+                }
+            } else {
+                CloudKitSyncManager.shared.saveRankedSongs(songs, userId: userId) { error in
+                    if let error = error {
+                        print("Failed to sync ranked songs to CloudKit: \(error.localizedDescription)")
+                    } else {
+                        print("Successfully synced ranked songs to CloudKit")
+                        self.updateLastSyncDate()
+                    }
                 }
             }
         }
@@ -206,22 +218,15 @@ class PersistenceManager: ObservableObject {
         }
     }
     
-    func loadUserProfile() -> (username: String, bio: String, profileImage: String, accentColor: Color)? {
+    func loadUserProfile() -> (username: String, bio: String, profileImage: String)? {
         guard let profile = UserDefaults.standard.dictionary(forKey: Keys.userProfile) else {
             return nil
         }
         
-        // Extract the saved color components
-        let r = profile["accentColorR"] as? CGFloat ?? 0.94
-        let g = profile["accentColorG"] as? CGFloat ?? 0.3
-        let b = profile["accentColorB"] as? CGFloat ?? 0.9
-        let a = profile["accentColorA"] as? CGFloat ?? 1.0
-        
         return (
             username: profile["username"] as? String ?? "",
             bio: profile["bio"] as? String ?? "",
-            profileImage: profile["profileImage"] as? String ?? "profile_image",
-            accentColor: Color(red: Double(r), green: Double(g), blue: Double(b), opacity: Double(a))
+            profileImage: profile["profileImage"] as? String ?? "profile_image"
         )
     }
     
@@ -268,7 +273,12 @@ class PersistenceManager: ObservableObject {
     func deleteAlbumRating(withId id: UUID) {
         var ratings = loadAlbumRatings()
         ratings.removeAll(where: { $0.id == id })
-        saveAlbumRatings(ratings)
+        
+        // Make sure to save with syncToCloud enabled to ensure CloudKit stays in sync
+        saveAlbumRatings(ratings, syncToCloud: true)
+        
+        // Notify listeners about the change
+        dataChangeSubject.send()
     }
     
     func getAlbumRating(forAlbumId albumId: String) -> AlbumRating? {

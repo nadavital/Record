@@ -65,6 +65,10 @@ class AlbumRatingManager: ObservableObject {
     
     // Delete a rating
     func deleteRating(_ rating: AlbumRating) {
+        // Remove from local state first
+        albumRatings.removeAll(where: { $0.id == rating.id })
+        
+        // Then persist the change
         PersistenceManager.shared.deleteAlbumRating(withId: rating.id)
     }
     

@@ -50,7 +50,7 @@ struct ReviewView: View {
                     UnifiedSearchView(searchType: .album)
                 }
                 .refreshable {
-                    if let userId = authManager.userId {
+                    if authManager.userId != nil {
                         await withCheckedContinuation { continuation in
                             persistenceManager.syncWithCloudKit { _ in
                                 continuation.resume()

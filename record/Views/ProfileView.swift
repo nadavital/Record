@@ -57,7 +57,7 @@ struct ProfileView: View {
                 .padding(.vertical)
             }
             .refreshable {
-                if let userId = authManager.userId {
+                if authManager.userId != nil {
                     await withCheckedContinuation { continuation in
                         persistenceManager.syncWithCloudKit { _ in
                             continuation.resume()

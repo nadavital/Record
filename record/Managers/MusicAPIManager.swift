@@ -413,7 +413,7 @@ class MusicAPIManager: ObservableObject {
             id: UUID(),
             title: item.title,
             artist: item.artist,
-            albumArt: item.id,
+            albumArt: item.albumName,
             sentiment: .fine,
             artworkURL: artworkCache[item.artworkID]
         )

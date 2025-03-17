@@ -14,18 +14,20 @@ struct RankedSongListView: View {
     var onAddSong: () -> Void
     
     var body: some View {
-        if filteredSongs.isEmpty {
-            EmptySongsView(searchText: searchText, onAddSong: onAddSong)
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets())
-        } else {
-            List {
+        List {
+            if filteredSongs.isEmpty {
+                EmptySongsView(searchText: searchText, onAddSong: onAddSong)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets())
+            } else {
                 ForEach(filteredSongs) { song in
                     RankedSongRow(
                         rank: (rankingManager.rankedSongs.firstIndex(where: { $0.id == song.id }) ?? -1) + 1,
                         song: song,
                         onDelete: { song in
-                            rankingManager.removeSong(song)
+                            withAnimation {
+                                rankingManager.removeSong(song)
+                            }
                         },
                         onChangeSentiment: { song in
                             rankingManager.addNewSong(song: song)
@@ -37,10 +39,10 @@ struct RankedSongListView: View {
                 Color.clear
                     .frame(height: 80)
             }
-            .listStyle(.plain)
-            .animation(.easeOut(duration: 0.2), value: filteredSongs)
-            .scrollIndicators(.hidden)
         }
+        .listStyle(.plain)
+        .animation(.easeOut(duration: 0.2), value: filteredSongs)
+        .scrollIndicators(.hidden)
     }
 }
 

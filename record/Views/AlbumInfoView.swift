@@ -181,8 +181,8 @@ struct AlbumInfoView: View {
         .onAppear {
             loadAlbumDetails()
         }
-        .onChange(of: shouldRateAfterDismiss) { newValue in
-            if newValue {
+        .onChange(of: shouldRateAfterDismiss) { 
+            if shouldRateAfterDismiss {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     rateAlbumDirectly()
                     shouldRateAfterDismiss = false
