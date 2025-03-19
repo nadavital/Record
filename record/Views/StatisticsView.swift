@@ -1,9 +1,8 @@
 import SwiftUI
-import MusicKit
+import MediaPlayer
 
 struct StatisticsView: View {
-    @EnvironmentObject private var musicAPI: MusicAPIManager
-    @EnvironmentObject private var rankingManager: MusicRankingManager
+    @EnvironmentObject private var mediaPlayerManager: MediaPlayerManager
     @Environment(\.colorScheme) private var colorScheme
     @State private var isRefreshing = false
     
@@ -24,21 +23,6 @@ struct StatisticsView: View {
                 .background(Color(.systemGroupedBackground).ignoresSafeArea())
                 .navigationTitle("Music Insights")
                 .navigationBarTitleDisplayMode(.large)
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        HStack {
-                            if isRefreshing {
-                                ProgressView().controlSize(.small)
-                            }
-                            Button {
-                                Task { await refreshData() }
-                            } label: {
-                                Image(systemName: "arrow.clockwise")
-                            }
-                            .disabled(isRefreshing)
-                        }
-                    }
-                }
                 .refreshable { await refreshData() }
         }
     }
@@ -46,14 +30,14 @@ struct StatisticsView: View {
     // Refresh data function
     private func refreshData() async {
         isRefreshing = true
-        await musicAPI.checkMusicAuthorizationStatus()
-        await musicAPI.fetchListeningHistory()
+        mediaPlayerManager.fetchTopSongs()
+        mediaPlayerManager.fetchTopAlbums()
+        mediaPlayerManager.fetchTopArtists()
         isRefreshing = false
     }
 }
 
 #Preview("Statistics View") {
     StatisticsView()
-        .environmentObject(MusicAPIManager())
-        .environmentObject(MusicRankingManager())
+        .environmentObject(MediaPlayerManager())
 }

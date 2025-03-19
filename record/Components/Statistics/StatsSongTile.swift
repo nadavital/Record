@@ -6,21 +6,20 @@
 //
 
 import SwiftUI
-import Foundation
-import MusicKit
+import MediaPlayer
 
 struct StatsSongTile: View {
-    @EnvironmentObject private var musicAPI: MusicAPIManager
-    let song: ListeningHistoryItem
+    @EnvironmentObject private var mediaPlayerManager: MediaPlayerManager
+    let song: MPMediaItem
     let count: Int
     
     var body: some View {
         VStack(alignment: .center, spacing: 8) {
             Group {
-                if let artworkImage = musicAPI.getArtworkImage(for: song) {
-                    Image(uiImage: artworkImage).resizable().scaledToFill()
+                if let artwork = song.artwork?.image(at: CGSize(width: 110, height: 110)) {
+                    Image(uiImage: artwork).resizable().scaledToFill()
                 } else {
-                    RemoteArtworkView(artworkURL: musicAPI.getArtworkURL(for: song.artworkID), placeholderText: song.title, size: CGSize(width: 110, height: 110))
+                    RemoteArtworkView(artworkURL: nil, placeholderText: song.title ?? "", size: CGSize(width: 110, height: 110))
                 }
             }
             .frame(width: 110, height: 110)
@@ -28,8 +27,8 @@ struct StatsSongTile: View {
             .shadow(radius: 2)
             
             VStack(spacing: 2) {
-                Text(song.title).font(.callout).fontWeight(.medium).lineLimit(1).multilineTextAlignment(.center)
-                Text(song.artist).font(.caption).foregroundColor(.secondary).lineLimit(1)
+                Text(song.title ?? "").font(.callout).fontWeight(.medium).lineLimit(1).multilineTextAlignment(.center)
+                Text(song.artist ?? "").font(.caption).foregroundColor(.secondary).lineLimit(1)
                 Text("\(count) plays").font(.caption2).foregroundColor(.secondary).padding(.top, 2)
             }
             .frame(width: 110)
@@ -38,16 +37,7 @@ struct StatsSongTile: View {
 }
 
 #Preview {
-    let song = ListeningHistoryItem(
-        id: "preview-id",
-        title: "LIFETIMES",
-        artist: "Katy Perry",
-        albumName: "143",
-        artworkID: "preview-artwork-id",
-        lastPlayedDate: Date.now,
-        playCount: 143,
-        musicKitId: nil
-    )
-    return StatsSongTile(song: song, count: song.playCount)
-        .environmentObject(MusicAPIManager())
+    let song = MPMediaItem()
+    return StatsSongTile(song: song, count: 143)
+        .environmentObject(MediaPlayerManager())
 }

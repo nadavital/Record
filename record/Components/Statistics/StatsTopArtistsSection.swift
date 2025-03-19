@@ -6,19 +6,23 @@
 //
 
 import SwiftUI
+import MediaPlayer
 
 struct StatsTopArtistsSection: View {
-    @EnvironmentObject var musicAPI: MusicAPIManager
+    @EnvironmentObject var mediaPlayerManager: MediaPlayerManager
     
-    private var listeningHistory: [ListeningHistoryItem] {
-        musicAPI.listeningHistory
+    var artistsWithCounts: [(artist: MPMediaItemCollection, count: Int)] {
+        return mediaPlayerManager.topArtists.map { collection in
+            let totalPlays = collection.items.reduce(0) { $0 + $1.playCount }
+            return (artist: collection, count: totalPlays)
+        }
     }
     
-    private var topArtists: [(artist: String, count: Int)] {
-        let artistCounts = Dictionary(grouping: listeningHistory, by: { $0.artist })
-            .map { (artist: $0.key, count: $0.value.reduce(0) { $0 + $1.playCount }) }
-            .sorted { $0.count > $1.count }
-        return artistCounts
+    // Convert the data to the format expected by TopArtistsListView
+    var artistsList: [(artist: String, count: Int)] {
+        return artistsWithCounts.map { item in
+            return (artist: item.artist.representativeItem?.artist ?? "", count: item.count)
+        }
     }
     
     var body: some View {
@@ -26,15 +30,15 @@ struct StatsTopArtistsSection: View {
             HStack {
                 Text("Top Artists").font(.headline).fontWeight(.semibold)
                 Spacer()
-                NavigationLink {
-                    TopArtistsListView(artists: topArtists)
-                } label: {
-                    Text("See All").font(.subheadline).foregroundColor(Color.accentColor)
+                NavigationLink(destination: TopArtistsListView(artists: artistsList)) {
+                    Text("See All")
+                        .font(.subheadline)
+                        .foregroundColor(.accentColor)
                 }
             }
             .padding(.horizontal, 4)
             
-            if topArtists.isEmpty {
+            if artistsWithCounts.isEmpty {
                 Text("No artist data available")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
@@ -44,8 +48,11 @@ struct StatsTopArtistsSection: View {
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 16) {
-                        ForEach(topArtists.prefix(10), id: \.artist) { item in
-                            StatsArtistTile(artist: item.artist, count: item.count)
+                        ForEach(artistsWithCounts.prefix(10), id: \.artist.representativeItem?.artist) { item in
+                            StatsArtistTile(
+                                artist: item.artist.representativeItem?.artist ?? "", 
+                                count: item.count
+                            )
                         }
                     }
                     .padding(.horizontal, 4)
@@ -60,5 +67,5 @@ struct StatsTopArtistsSection: View {
 
 #Preview {
     StatsTopArtistsSection()
-        .environmentObject(MusicAPIManager())
+        .environmentObject(MediaPlayerManager())
 }

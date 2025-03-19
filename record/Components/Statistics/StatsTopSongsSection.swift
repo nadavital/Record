@@ -5,18 +5,13 @@
 //  Created by Nadav Avital on 3/5/25.
 //
 import SwiftUI
-import MusicKit
+import MediaPlayer
 
 struct StatsTopSongsSection: View {
-    @EnvironmentObject var musicAPI: MusicAPIManager
-    @EnvironmentObject var rankingManager: MusicRankingManager
+    @EnvironmentObject var mediaPlayerManager: MediaPlayerManager
     
-    private var listeningHistory: [ListeningHistoryItem] {
-        musicAPI.listeningHistory
-    }
-    
-    private var topSongs: [(song: ListeningHistoryItem, count: Int)] {
-        let sortedSongs = listeningHistory
+    private var topSongs: [(song: MPMediaItem, count: Int)] {
+        let sortedSongs = mediaPlayerManager.topSongs
             .map { (song: $0, count: $0.playCount) }
             .sorted { $0.count > $1.count }
         return sortedSongs
@@ -27,10 +22,10 @@ struct StatsTopSongsSection: View {
             HStack {
                 Text("Top Songs").font(.headline).fontWeight(.semibold)
                 Spacer()
-                NavigationLink {
-                    TopSongsListView(songs: topSongs)
-                } label: {
-                    Text("See All").font(.subheadline).foregroundColor(Color.accentColor)
+                NavigationLink(destination: TopSongsListView(songs: topSongs)) {
+                    Text("See All")
+                        .font(.subheadline)
+                        .foregroundColor(.accentColor)
                 }
             }
             .padding(.horizontal, 4)
@@ -45,18 +40,8 @@ struct StatsTopSongsSection: View {
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 16) {
-                        // Convert the ArraySlice to Array before using in ForEach
-                        ForEach(Array(topSongs.prefix(10)), id: \.song.id) { item in
-                            // Create a NavigationLink that doesn't depend on MediaItem but uses
-                            // the song title and artist to search in MusicKit
-                            NavigationLink {
-                                // Create a wrapper view that searches and loads the song info
-                                SongSearchAndInfoView(title: item.song.title, artist: item.song.artist)
-                                    .environmentObject(musicAPI)
-                                    .environmentObject(rankingManager)
-                            } label: {
-                                StatsSongTile(song: item.song, count: item.count)
-                            }
+                        ForEach(topSongs.prefix(10), id: \.song.persistentID) { item in
+                            StatsSongTile(song: item.song, count: item.count)
                         }
                     }
                     .padding(.horizontal, 4)
@@ -69,91 +54,7 @@ struct StatsTopSongsSection: View {
     }
 }
 
-// This view handles searching for a song in MusicKit and then loading the song info view
-struct SongSearchAndInfoView: View {
-    let title: String
-    let artist: String
-    
-    @EnvironmentObject var musicAPI: MusicAPIManager
-    @EnvironmentObject var rankingManager: MusicRankingManager
-    @State private var isSearching = true
-    @State private var searchResult: MusicKit.Song?
-    @State private var errorMessage: String?
-    
-    var body: some View {
-        Group {
-            if isSearching {
-                ProgressView("Searching for song...")
-            } else if let song = searchResult {
-                SongInfoView(
-                    musicKitSong: song,
-                    musicAPI: musicAPI,
-                    rankingManager: rankingManager
-                )
-            } else {
-                // Fallback if song cannot be found
-                VStack(spacing: 20) {
-                    Text("Couldn't find song in Apple Music")
-                        .font(.headline)
-                    
-                    Text("\(title) by \(artist)")
-                        .foregroundColor(.secondary)
-                    
-                    if let error = errorMessage {
-                        Text(error)
-                            .foregroundColor(.red)
-                            .font(.caption)
-                    }
-                    
-                    Button("Try Again") {
-                        searchForSong()
-                    }
-                    .buttonStyle(.bordered)
-                }
-                .padding()
-            }
-        }
-        .onAppear {
-            searchForSong()
-        }
-    }
-    
-    private func searchForSong() {
-        isSearching = true
-        errorMessage = nil
-        
-        Task {
-            do {
-                var request = MusicCatalogSearchRequest(term: "\(title) \(artist)", types: [MusicKit.Song.self])
-                request.limit = 5
-                
-                let response = try await request.response()
-                
-                // Try to find an exact match
-                let exactMatch = response.songs.first { song in
-                    song.title.lowercased() == title.lowercased() &&
-                    song.artistName.lowercased() == artist.lowercased()
-                }
-                
-                // Use the exact match or the first result
-                let song = exactMatch ?? response.songs.first
-                
-                await MainActor.run {
-                    searchResult = song
-                    isSearching = false
-                }
-            } catch {
-                await MainActor.run {
-                    errorMessage = error.localizedDescription
-                    isSearching = false
-                }
-            }
-        }
-    }
-}
-
 #Preview {
     StatsTopSongsSection()
-        .environmentObject(MusicAPIManager())
-        .environmentObject(MusicRankingManager())
+        .environmentObject(MediaPlayerManager())
 }

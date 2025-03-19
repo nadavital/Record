@@ -6,27 +6,20 @@
 //
 
 import SwiftUI
+import MediaPlayer
 
 struct StatsAlbumTile: View {
-    @EnvironmentObject var musicAPI: MusicAPIManager
-    
-    private var listeningHistory: [ListeningHistoryItem] {
-        musicAPI.listeningHistory
-    }
-    
+    @EnvironmentObject var mediaPlayerManager: MediaPlayerManager
     let album: String
     let artist: String
     let count: Int
-    
     var body: some View {
         VStack(alignment: .center, spacing: 8) {
             Group {
-                if let firstSong = listeningHistory.first(where: { $0.albumName == album && $0.artist == artist }),
-                   let artworkImage = musicAPI.getArtworkImage(for: firstSong) {
-                    Image(uiImage: artworkImage).resizable().scaledToFill()
+                if let artworkURL = mediaPlayerManager.topAlbums.first(where: { $0.representativeItem?.albumTitle == album && $0.representativeItem?.artist == artist })?.representativeItem?.artwork?.image(at: CGSize(width: 110, height: 110)) {
+                    Image(uiImage: artworkURL).resizable().scaledToFill()
                 } else {
                     RemoteArtworkView(artworkURL: nil, placeholderText: album, size: CGSize(width: 110, height: 110))
-                    
                 }
             }
             .frame(width: 110, height: 110)
@@ -45,5 +38,5 @@ struct StatsAlbumTile: View {
 
 #Preview {
     StatsAlbumTile(album: "Sweetener", artist: "Ariana Grande", count: 999)
-        .environmentObject(MusicAPIManager())
+        .environmentObject(MediaPlayerManager())
 }

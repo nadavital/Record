@@ -6,28 +6,27 @@
 //
 
 import SwiftUI
+import MediaPlayer
 
 struct StatsTopAlbumsSection: View {
-    @EnvironmentObject var musicAPI: MusicAPIManager
+    @EnvironmentObject var mediaPlayerManager: MediaPlayerManager
     
-    // Derived statistics
-    private var listeningHistory: [ListeningHistoryItem] {
-        musicAPI.listeningHistory
+    var albumsWithCounts: [(album: MPMediaItemCollection, count: Int)] {
+        return mediaPlayerManager.topAlbums.map { collection in
+            let totalPlays = collection.items.reduce(0) { $0 + $1.playCount }
+            return (album: collection, count: totalPlays)
+        }
     }
     
-    private var topAlbums: [(album: String, artist: String, count: Int)] {
-        let albumCounts = Dictionary(grouping: listeningHistory, by: { "\($0.albumName)||\($0.artist)" })
-            .map { key, value in
-                let components = key.components(separatedBy: "||")
-                return (
-                    album: components.first ?? "",
-                    artist: components.last ?? "",
-                    count: value.reduce(0) { $0 + $1.playCount }
-                )
-            }
-            .filter { !$0.album.isEmpty }
-            .sorted { $0.count > $1.count }
-        return albumCounts
+    // Convert the data to the format expected by TopAlbumsListView
+    var albumsList: [(album: String, artist: String, count: Int)] {
+        return albumsWithCounts.map { item in
+            return (
+                album: item.album.representativeItem?.albumTitle ?? "",
+                artist: item.album.representativeItem?.artist ?? "",
+                count: item.count
+            )
+        }
     }
     
     var body: some View {
@@ -35,15 +34,15 @@ struct StatsTopAlbumsSection: View {
             HStack {
                 Text("Top Albums").font(.headline).fontWeight(.semibold)
                 Spacer()
-                NavigationLink {
-                    TopAlbumsListView(albums: topAlbums)
-                } label: {
-                    Text("See All").font(.subheadline).foregroundColor(Color.accentColor)
+                NavigationLink(destination: TopAlbumsListView(albums: albumsList)) {
+                    Text("See All")
+                        .font(.subheadline)
+                        .foregroundColor(.accentColor)
                 }
             }
             .padding(.horizontal, 4)
             
-            if topAlbums.isEmpty {
+            if albumsWithCounts.isEmpty {
                 Text("No album data available")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
@@ -53,8 +52,12 @@ struct StatsTopAlbumsSection: View {
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 16) {
-                        ForEach(topAlbums.prefix(10), id: \.album) { item in
-                            StatsAlbumTile(album: item.album, artist: item.artist, count: item.count)
+                        ForEach(albumsWithCounts.prefix(10), id: \.album.representativeItem?.albumTitle) { item in
+                            StatsAlbumTile(
+                                album: item.album.representativeItem?.albumTitle ?? "", 
+                                artist: item.album.representativeItem?.artist ?? "", 
+                                count: item.count
+                            )
                         }
                     }
                     .padding(.horizontal, 4)
@@ -69,5 +72,5 @@ struct StatsTopAlbumsSection: View {
 
 #Preview {
     StatsTopAlbumsSection()
-        .environmentObject(MusicAPIManager())
+        .environmentObject(MediaPlayerManager())
 }

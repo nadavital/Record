@@ -16,6 +16,7 @@ struct ProfileView: View {
     @State private var showAlbumPicker = false
     @State private var showArtistPicker = false
     @State private var showSettings = false
+    @State private var showDetailedStats = false
     @State private var showingSyncAlert = false
     
     // For sync status
@@ -70,10 +71,18 @@ struct ProfileView: View {
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        showSettings = true
-                    } label: {
-                        Image(systemName: "gearshape")
+                    HStack(spacing: 16) {
+                        Button {
+                            showDetailedStats = true
+                        } label: {
+                            Image(systemName: "chart.bar")
+                        }
+                        
+                        Button {
+                            showSettings = true
+                        } label: {
+                            Image(systemName: "gearshape")
+                        }
                     }
                 }
                 
@@ -92,6 +101,21 @@ struct ProfileView: View {
             .sheet(isPresented: $showSettings) {
                 SettingsView()
             }
+            .sheet(isPresented: $showDetailedStats) {
+                NavigationStack {
+                    StatisticsView()
+                        .navigationTitle("Statistics")
+                        .navigationBarTitleDisplayMode(.large)
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button("Done") {
+                                    showDetailedStats = false
+                                }
+                            }
+                        }
+                }
+                .presentationDragIndicator(.visible)
+            }
             .alert("Sync Error", isPresented: $showingSyncAlert) {
                 Button("OK", role: .cancel) { }
             } message: {
@@ -105,6 +129,8 @@ struct ProfileView: View {
         }
     }
 }
+
+// Remove the CompactStatsSection struct since we're no longer using it
 
 #Preview {
     let rankingManager = MusicRankingManager()

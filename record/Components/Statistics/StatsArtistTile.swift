@@ -6,16 +6,17 @@
 //
 
 import SwiftUI
+import MediaPlayer
 
 struct StatsArtistTile: View {
-    @EnvironmentObject var musicAPI: MusicAPIManager
+    @EnvironmentObject var mediaPlayerManager: MediaPlayerManager
     let artist: String
     let count: Int
     var body: some View {
         VStack(alignment: .center, spacing: 8) {
             Group {
-                if let artworkURL = musicAPI.getArtworkURL(for: artist) {
-                    AsyncImage(url: artworkURL)
+                if let artworkURL = mediaPlayerManager.topArtists.first(where: { $0.representativeItem?.artist == artist })?.representativeItem?.artwork?.image(at: CGSize(width: 90, height: 90)) {
+                    Image(uiImage: artworkURL).resizable().scaledToFill()
                 } else {
                     RemoteArtworkView(artworkURL: nil, placeholderText: artist, size: CGSize(width: 90, height: 90))
                 }
@@ -35,5 +36,5 @@ struct StatsArtistTile: View {
 
 #Preview {
     StatsArtistTile(artist: "Taylor Swift", count: 1989)
-        .environmentObject(MusicAPIManager())
+        .environmentObject(MediaPlayerManager())
 }

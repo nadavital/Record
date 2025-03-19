@@ -16,6 +16,7 @@ struct recordApp: App {
     @StateObject private var playerManager = MusicPlayerManager()
     @StateObject private var albumRatingManager = AlbumRatingManager()
     @StateObject private var authManager = AuthManager.shared
+    @StateObject private var mediaPlayerManager = MediaPlayerManager()
     @State private var musicAuthorizationStatus = MusicAuthorization.Status.notDetermined
     @State private var showUsernamePrompt = false
     
@@ -33,6 +34,7 @@ struct recordApp: App {
                         .environmentObject(authManager)
                         .environmentObject(playerManager)
                         .environmentObject(albumRatingManager)
+                        .environmentObject(mediaPlayerManager)
                         .onAppear {
                             checkMusicAuthorization()
                             checkIfUsernameNeeded()

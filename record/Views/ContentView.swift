@@ -29,13 +29,6 @@ struct ContentView: View {
                     }
                     .tag(1)
                 
-                StatisticsView()
-                    .tabItem {
-                        Image(systemName: "chart.bar")
-                        Text("Stats")
-                    }
-                    .tag(2)
-                
                 ProfileView()
                     .tabItem {
                         Image(systemName: "person.fill")
@@ -80,25 +73,6 @@ struct ContentView: View {
                 RateAlbumOverlayView()
                     .transition(.opacity)
                     .zIndex(12)
-            }
-        }
-        .task {
-            if !statsLoadedInitially {
-                await musicAPI.checkMusicAuthorizationStatus()
-                await musicAPI.fetchListeningHistory()
-                
-                #if DEBUG
-                musicAPI.setDemoCurrentSong()
-                #endif
-                
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    withAnimation {
-                        isLoading = false
-                        nowPlayingBarVisible = playerManager.currentSong != nil
-                    }
-                }
-                
-                statsLoadedInitially = true
             }
         }
         .onChange(of: rankingManager.isRanking) {
