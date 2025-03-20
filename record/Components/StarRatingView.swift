@@ -5,14 +5,6 @@
 //  Created by Nadav Avital on 3/6/25.
 //
 
-
-//
-//  StarRatingView.swift
-//  record
-//
-//  Created by Claude on 3/6/25.
-//
-
 import SwiftUI
 
 struct StarRatingView: View {
@@ -69,25 +61,20 @@ struct StarRatingView: View {
     private func starView(for index: Int) -> some View {
         let fillAmount = getFillAmount(for: index)
         
-        return Image(systemName: "star.fill")
+        // Use appropriate system image based on fill amount
+        let systemName: String
+        
+        if fillAmount >= 1.0 {
+            systemName = "star.fill"
+        } else if fillAmount >= 0.5 {
+            systemName = "star.leadinghalf.filled" 
+        } else {
+            systemName = "star"
+        }
+        
+        return Image(systemName: systemName)
             .font(.system(size: size))
-            .foregroundStyle(
-                fillAmount > 0 ? fillColor : emptyColor
-            )
-            .overlay(
-                GeometryReader { geometry in
-                    if fillAmount > 0 && fillAmount < 1 {
-                        fillColor
-                            .mask(
-                                HStack {
-                                    Rectangle()
-                                        .frame(width: geometry.size.width * fillAmount)
-                                    Spacer(minLength: 0)
-                                }
-                            )
-                    }
-                }
-            )
+            .foregroundStyle(fillAmount > 0 ? fillColor : emptyColor)
     }
     
     private func getFillAmount(for index: Int) -> Double {
