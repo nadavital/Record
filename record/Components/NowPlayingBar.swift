@@ -1,5 +1,6 @@
 import SwiftUI
 import MediaPlayer
+import os
 
 struct NoFeedbackButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
@@ -12,6 +13,8 @@ struct NowPlayingBar: View {
     @EnvironmentObject private var rankingManager: MusicRankingManager
     @EnvironmentObject private var playerManager: MusicPlayerManager
     @State private var currentlyDisplayedSong: Song? = nil
+    
+    private let logger = Logger(subsystem: "com.Nadav.record", category: "NowPlayingBar")
     
     var isLoading: Bool
     
@@ -93,6 +96,20 @@ struct NowPlayingBar: View {
         .onChange(of: rankingManager.isRanking) {
             if !rankingManager.isRanking, currentlyDisplayedSong != nil {
                 currentlyDisplayedSong = nil
+            }
+        }
+        .onChange(of: playerManager.currentSong) { newSong in
+            if let song = newSong {
+                logger.debug("NowPlayingBar: Song changed to \(song.title) by \(song.artist)")
+            } else {
+                logger.debug("NowPlayingBar: Current song set to nil")
+            }
+        }
+        .onAppear {
+            if let song = playerManager.currentSong {
+                logger.debug("NowPlayingBar appeared with song: \(song.title) by \(song.artist)")
+            } else {
+                logger.debug("NowPlayingBar appeared but currentSong is nil")
             }
         }
     }

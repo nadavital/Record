@@ -116,6 +116,17 @@ struct ContentView: View {
                 .presentationDragIndicator(.visible)
             }
         }
+        .onAppear {
+            // Set isLoading to false after a brief delay to allow data to load
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                isLoading = false
+                
+                // Check for currently playing songs
+                if playerManager.currentSong != nil {
+                    nowPlayingBarVisible = true
+                }
+            }
+        }
     }
 }
 
