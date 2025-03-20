@@ -21,7 +21,7 @@ struct ProfileAlbumRatingsSection: View {
                 
                 Spacer()
                 
-                NavigationLink(destination: AllAlbumRatingsView()) {
+                NavigationLink(destination: ReviewView()) {
                     Text("See All")
                         .font(.subheadline)
                         .foregroundColor(.accentColor)
@@ -121,95 +121,6 @@ struct RatedAlbumView: View {
     }
 }
 
-struct AllAlbumRatingsView: View {
-    @EnvironmentObject var profileManager: UserProfileManager
-    @EnvironmentObject var musicAPI: MusicAPIManager
-    @State private var sortOption: SortOption = .rating
-    
-    enum SortOption {
-        case rating
-        case recent
-        case title
-    }
-    
-    var sortedRatings: [AlbumRating] {
-        switch sortOption {
-        case .rating:
-            return profileManager.albumRatings
-                .filter { $0.rating > 0 }
-                .sorted(by: { $0.rating > $1.rating })
-        case .recent:
-            return profileManager.albumRatings
-                .sorted(by: { $0.dateAdded > $1.dateAdded })
-        case .title:
-            return profileManager.albumRatings
-                .sorted(by: { $0.title < $1.title })
-        }
-    }
-    
-    var body: some View {
-        List {
-            // Sort options
-            Picker("Sort by", selection: $sortOption) {
-                Text("Highest Rated").tag(SortOption.rating)
-                Text("Most Recent").tag(SortOption.recent)
-                Text("Title").tag(SortOption.title)
-            }
-            .pickerStyle(SegmentedPickerStyle())
-            .padding(.vertical, 8)
-            
-            ForEach(sortedRatings) { rating in
-                NavigationLink(destination: AlbumInfoView(
-                    album: Album(
-                        id: UUID(uuidString: rating.albumId) ?? UUID(),
-                        title: rating.title,
-                        artist: rating.artist,
-                        albumArt: rating.title,
-                        artworkURL: rating.artworkURL
-                    ),
-                    musicAPI: musicAPI
-                )) {
-                    HStack(spacing: 12) {
-                        // Album artwork
-                        RemoteArtworkView(
-                            artworkURL: rating.artworkURL,
-                            placeholderText: rating.title,
-                            size: CGSize(width: 50, height: 50)
-                        )
-                        
-                        // Album info
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(rating.title)
-                                .font(.body)
-                            
-                            Text(rating.artist)
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        Spacer()
-                        
-                        // Star rating
-                        VStack(alignment: .trailing) {
-                            StarRatingView(
-                                rating: rating.rating,
-                                size: 14,
-                                spacing: 2
-                            )
-                            
-                            Text(String(format: "%.1f", rating.rating))
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    .padding(.vertical, 4)
-                }
-            }
-        }
-        .navigationTitle("Album Ratings")
-        .listStyle(InsetGroupedListStyle())
-    }
-}
 
 #Preview {
     ProfileAlbumRatingsSection()
