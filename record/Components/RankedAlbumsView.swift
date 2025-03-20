@@ -69,79 +69,95 @@ struct RankedAlbumsView: View {
                     Text("Rate some albums to see them here")
                 }
             } else {
-                List {
-                    ForEach(filteredAlbums) { rating in
-                        NavigationLink(destination: AlbumInfoView(
-                            album: Album(
-                                id: UUID(uuidString: rating.albumId) ?? UUID(),
-                                title: rating.title,
-                                artist: rating.artist,
-                                albumArt: rating.title,
-                                artworkURL: rating.artworkURL
-                            ),
-                            musicAPI: musicAPI
-                        )) {
-                            HStack(spacing: 12) {
-                                // Album artwork
-                                RemoteArtworkView(
-                                    artworkURL: rating.artworkURL,
-                                    placeholderText: rating.title,
-                                    cornerRadius: 6,
-                                    size: CGSize(width: 50, height: 50)
-                                )
-                                .shadow(radius: 2)
-                                
-                                // Album info
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(rating.title)
-                                        .font(.body)
-                                        .lineLimit(1)
-                                    
-                                    Text(rating.artist)
-                                        .font(.subheadline)
-                                        .foregroundColor(.secondary)
-                                        .lineLimit(1)
-                                }
-                                
-                                Spacer()
-                                
-                                // Rating
-                                HStack(spacing: 4) {
-                                    StarRatingView(
-                                        rating: rating.rating,
-                                        size: 14,
-                                        spacing: 2
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 0) {
+                        ForEach(filteredAlbums) { rating in
+                            VStack(spacing: 0) {
+                                NavigationLink {
+                                    AlbumInfoView(
+                                        album: Album(
+                                            id: UUID(uuidString: rating.albumId) ?? UUID(),
+                                            title: rating.title,
+                                            artist: rating.artist,
+                                            albumArt: rating.title,
+                                            artworkURL: rating.artworkURL
+                                        ),
+                                        musicAPI: musicAPI
                                     )
-                                    Text(String(format: "%.1f", rating.rating))
-                                        .font(.subheadline)
-                                        .foregroundColor(.secondary)
+                                } label: {
+                                    HStack(spacing: 12) {
+                                        // Album artwork
+                                        RemoteArtworkView(
+                                            artworkURL: rating.artworkURL,
+                                            placeholderText: rating.title,
+                                            cornerRadius: 6,
+                                            size: CGSize(width: 50, height: 50)
+                                        )
+                                        .shadow(radius: 2)
+                                        
+                                        // Album info
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(rating.title)
+                                                .foregroundColor(.primary)
+                                                .font(.body)
+                                                .lineLimit(1)
+                                            
+                                            Text(rating.artist)
+                                                .font(.subheadline)
+                                                .foregroundColor(.secondary)
+                                                .lineLimit(1)
+                                        }
+                                        
+                                        Spacer()
+                                        
+                                        // Rating
+                                        HStack(spacing: 4) {
+                                            StarRatingView(
+                                                rating: rating.rating,
+                                                size: 14,
+                                                spacing: 2
+                                            )
+                                            Text(String(format: "%.1f", rating.rating))
+                                                .font(.subheadline)
+                                                .foregroundColor(.secondary)
+                                        }
+                                    }
+                                    .padding(.vertical, 12)
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                                .padding(.horizontal)
+                                .contextMenu {
+                                    Button(role: .destructive) {
+                                        albumRatingManager.deleteRating(rating)
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                    
+                                    Button {
+                                        // Re-review action
+                                        let album = convertRatingToAlbum(rating)
+                                        albumRatingManager.rateAlbum(album)
+                                    } label: {
+                                        Label("Re-review", systemImage: "pencil")
+                                    }
+                                }
+                                
+                                if rating.id != filteredAlbums.last?.id {
+                                    Divider()
+                                        .padding(.leading)
                                 }
                             }
-                            .padding(.vertical, 4)
+                            .background(Color(UIColor.systemBackground))
                         }
-                        .swipeActions(edge: .trailing) {
-                            Button(role: .destructive) {
-                                albumRatingManager.deleteRating(rating)
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
-                            
-                            Button {
-                                // Re-review action
-                                let album = convertRatingToAlbum(rating)
-                                albumRatingManager.rateAlbum(album)
-                            } label: {
-                                Label("Re-review", systemImage: "pencil")
-                            }
-                            .tint(.blue)
-                        }
+                        
+                        // Padding at the bottom for now playing bar
+                        Color.clear
+                            .frame(height: 80)
                     }
-                    
-                    // Padding at the bottom for now playing bar
-                    Color.clear
-                        .frame(height: 80)
                 }
-                .listStyle(.plain)
+                .background(Color(UIColor.systemGroupedBackground))
+                .animation(.easeOut(duration: 0.2), value: filteredAlbums)
+                .scrollIndicators(.hidden)
             }
         }
     }

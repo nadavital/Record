@@ -34,7 +34,7 @@ struct ContentView: View {
                         Image(systemName: "person.fill")
                         Text("Profile")
                     }
-                    .tag(3)
+                    .tag(2)
             }
             
             VStack {

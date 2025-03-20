@@ -17,7 +17,9 @@ struct RankedSongRow: View {
     @EnvironmentObject private var rankingManager: MusicRankingManager
     
     var body: some View {
-        NavigationLink(destination: SongInfoView(rankedSong: song, musicAPI: musicAPI, rankingManager: rankingManager)) {
+        NavigationLink {
+            SongInfoView(rankedSong: song, musicAPI: musicAPI, rankingManager: rankingManager)
+        } label: {
             HStack {
                 RemoteArtworkView(
                     artworkURL: song.artworkURL,
@@ -33,8 +35,12 @@ struct RankedSongRow: View {
                     .frame(width: 32)
                 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(song.title).font(.body)
-                    Text(song.artist).font(.subheadline).foregroundStyle(.secondary)
+                    Text(song.title)
+                        .foregroundColor(.primary)
+                        .font(.body)
+                    Text(song.artist)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                 }
                 Spacer()
                 Text(String(format: "%.1f", song.score))
@@ -46,8 +52,11 @@ struct RankedSongRow: View {
                     .symbolRenderingMode(.palette)
                     .foregroundStyle(color(for: song.sentiment))
             }
-            .padding(.vertical, 8)
+            .foregroundStyle(.primary)
+            .contentShape(Rectangle())
+            .padding(.vertical, 12)
         }
+        .buttonStyle(PlainButtonStyle()) // This prevents the default button styling
         .contextMenu {
             Button(role: .destructive) { withAnimation { onDelete(song) } } label: { Label("Delete", systemImage: "trash") }
             Button { onChangeSentiment(song) } label: { Label("Re-rank", systemImage: "arrow.counterclockwise") }
