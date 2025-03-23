@@ -64,6 +64,7 @@ struct ProfileHeader: View {
             } label: {
                 Text(isEditing ? "Done" : "Edit Profile")
                     .font(.system(.body, design: .rounded))
+                    .foregroundStyle(.white)
                     .fontWeight(.medium)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 8)
