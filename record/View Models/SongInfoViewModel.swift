@@ -44,56 +44,72 @@ class SongInfoViewModel: ObservableObject {
     }
     
     private func createUnifiedSong(from musicKitSong: MusicKit.Song) async -> (UnifiedSong, MusicKit.Album?) {
-        await MainActor.run { isLoading = true }
-        
         let title = musicKitSong.title
         let artist = musicKitSong.artistName
         let albumTitle = musicKitSong.albumTitle ?? "Unknown Album"
         
-        // Get artwork URL from the song
         var artworkURL: URL? = nil
         if let artwork = musicKitSong.artwork {
             artworkURL = artwork.url(width: 300, height: 300)
         }
-        
-        // If no artwork from MusicKit song, check if we have it cached
         if artworkURL == nil {
-            // Try to find it in musicAPI's artwork cache
             let cacheKey = "\(title)-\(artist)".lowercased()
             artworkURL = await musicAPI.getArtworkURL(for: cacheKey)
         }
         
-        // Fetch ranked song
         let rankedSong = rankingManager.rankedSongs.first { ranked in
             ranked.title.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == title.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() &&
             ranked.artist.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == artist.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         }
         
-        // Fetch MusicKit album for additional metadata
         var musicKitAlbum: MusicKit.Album?
+        var playCount: Int = 0
+        var lastPlayedDate: Date?
+        
+        // Fetch full song metadata from catalog
         do {
-            var request = MusicCatalogSearchRequest(term: "\(title) \(artist)", types: [MusicKit.Song.self])
-            request.limit = 1
-            let response = try await request.response()
-            if let track = response.songs.first {
-                let trackWithAlbum = try await track.with([.albums])
-                musicKitAlbum = trackWithAlbum.albums?.first
+            var catalogRequest = MusicCatalogSearchRequest(term: "\(title) \(artist)", types: [MusicKit.Song.self])
+            catalogRequest.limit = 1
+            let catalogResponse = try await catalogRequest.response()
+            if let catalogSong = catalogResponse.songs.first {
+                // Attempt to fetch extended properties (though playCount isn't directly here)
+                let detailedSong = try await catalogSong.with([.albums])
+                musicKitAlbum = detailedSong.albums?.first
+                // playCount isn't populated from catalog alone; check library next
             }
         } catch {
-            print("Failed to fetch MusicKit album: \(error)")
+            print("Failed to fetch catalog song: \(error)")
         }
         
-        // Get play count from the API's listening history data
-        var playCount = 0
-        var lastPlayedDate: Date? = nil
-        let historyItem = await musicAPI.listeningHistory.first { item in 
-            item.title.lowercased() == title.lowercased() && 
-            item.artist.lowercased() == artist.lowercased()
-        }
-        
-        if let historyItem = historyItem {
-            playCount = historyItem.playCount
-            lastPlayedDate = historyItem.lastPlayedDate
+        // Check library for user-specific play count
+        do {
+            var libraryRequest = MusicLibraryRequest<MusicKit.Song>()
+            libraryRequest.filter(text: "\(title) \(artist)")
+            let libraryResponse = try await libraryRequest.response()
+            if let librarySong = libraryResponse.items.first(where: {
+                $0.title.lowercased() == title.lowercased() &&
+                $0.artistName.lowercased() == artist.lowercased()
+            }) {
+                playCount = librarySong.playCount ?? 0
+                lastPlayedDate = librarySong.lastPlayedDate
+                print("Library playCount for \(title) by \(artist): \(playCount)")
+            } else {
+                // If not in library, try recently played for catalog songs
+                let recentlyPlayedRequest = MusicRecentlyPlayedRequest<MusicKit.Song>()
+                let recentlyPlayedResponse = try await recentlyPlayedRequest.response()
+                if let playedSong = recentlyPlayedResponse.items.first(where: {
+                    $0.title.lowercased() == title.lowercased() &&
+                    $0.artistName.lowercased() == artist.lowercased()
+                }) {
+                    playCount = playedSong.playCount ?? 0
+                    lastPlayedDate = playedSong.lastPlayedDate
+                    print("Recently played playCount for \(title) by \(artist): \(playCount)")
+                } else {
+                    print("No play data for \(title) by \(artist)")
+                }
+            }
+        } catch {
+            print("Failed to fetch play count: \(error)")
         }
         
         return (
@@ -116,48 +132,62 @@ class SongInfoViewModel: ObservableObject {
     }
     
     private func createUnifiedSong(from song: Song) async -> (UnifiedSong, MusicKit.Album?) {
-        await MainActor.run { isLoading = true }
-        
         let rankedSong = rankingManager.rankedSongs.first { ranked in
             ranked.title.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == song.title.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() &&
             ranked.artist.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == song.artist.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         }
         
-        var playCount = 0
-        var lastPlayedDate: Date?
         var musicKitAlbum: MusicKit.Album?
+        var correctedAlbumTitle = song.albumArt
         var releaseDate: Date?
         var genre: String?
-        var correctedAlbumTitle = song.albumArt
+        var playCount = 0
+        var lastPlayedDate: Date?
         
-        // If albumArt looks like junk, fetch from MusicKit
-        if song.albumArt.count < 3 || song.albumArt.rangeOfCharacter(from: CharacterSet.alphanumerics.inverted) == nil {
-            do {
-                var request = MusicCatalogSearchRequest(term: "\(song.title) \(song.artist)", types: [MusicKit.Song.self])
-                request.limit = 1
-                let response = try await request.response()
-                if let track = response.songs.first {
-                    let trackWithAlbum = try await track.with([.albums])
-                    musicKitAlbum = trackWithAlbum.albums?.first
-                    correctedAlbumTitle = musicKitAlbum?.title ?? song.albumArt
-                    releaseDate = musicKitAlbum?.releaseDate
-                    genre = musicKitAlbum?.genres?.first?.name
-                }
-                
-                // Get play count from the API's listening history data
-                let historyItem = await musicAPI.listeningHistory.first { item in 
-                    item.title.lowercased() == song.title.lowercased() && 
-                    item.artist.lowercased() == song.artist.lowercased()
-                }
-                
-                if let historyItem = historyItem {
-                    playCount = historyItem.playCount
-                    lastPlayedDate = historyItem.lastPlayedDate
-                }
-                
-            } catch {
-                print("Error fetching MusicKit data: \(error)")
+        // Fetch from catalog
+        do {
+            var request = MusicCatalogSearchRequest(term: "\(song.title) \(song.artist)", types: [MusicKit.Song.self])
+            request.limit = 1
+            let response = try await request.response()
+            if let track = response.songs.first {
+                let trackWithAlbum = try await track.with([.albums])
+                musicKitAlbum = trackWithAlbum.albums?.first
+                correctedAlbumTitle = musicKitAlbum?.title ?? song.albumArt
+                releaseDate = musicKitAlbum?.releaseDate
+                genre = musicKitAlbum?.genres?.first?.name
             }
+        } catch {
+            print("Error fetching MusicKit data: \(error)")
+        }
+        
+        // Fetch play count
+        do {
+            var libraryRequest = MusicLibraryRequest<MusicKit.Song>()
+            libraryRequest.filter(text: "\(song.title) \(song.artist)")
+            let libraryResponse = try await libraryRequest.response()
+            if let librarySong = libraryResponse.items.first(where: {
+                $0.title.lowercased() == song.title.lowercased() &&
+                $0.artistName.lowercased() == song.artist.lowercased()
+            }) {
+                playCount = librarySong.playCount ?? 0
+                lastPlayedDate = librarySong.lastPlayedDate
+                print("Library playCount for \(song.title) by \(song.artist): \(playCount)")
+            } else {
+                let recentlyPlayedRequest = MusicRecentlyPlayedRequest<MusicKit.Song>()
+                let recentlyPlayedResponse = try await recentlyPlayedRequest.response()
+                if let playedSong = recentlyPlayedResponse.items.first(where: {
+                    $0.title.lowercased() == song.title.lowercased() &&
+                    $0.artistName.lowercased() == song.artist.lowercased()
+                }) {
+                    playCount = playedSong.playCount ?? 0
+                    lastPlayedDate = playedSong.lastPlayedDate
+                    print("Recently played playCount for \(song.title) by \(song.artist): \(playCount)")
+                } else {
+                    print("No play data for \(song.title) by \(song.artist)")
+                }
+            }
+        } catch {
+            print("Failed to fetch play count: \(error)")
         }
         
         return (

@@ -26,15 +26,14 @@ class AlbumInfoViewModel: ObservableObject {
                 let response = try await request.response()
                 if let fetchedAlbum = response.albums.first {
                     let detailedAlbum = try await fetchedAlbum.with([.tracks])
-                    let tracks = detailedAlbum.tracks ?? []
+                    let tracks = detailedAlbum.tracks ?? MusicItemCollection<MusicKit.Track>([])
                     
-                    // Calculate total play count from MusicKit listening history
-                    let playCount = await calculateTotalPlayCount(for: tracks)
+                    let (trackList, totalPlays) = await fetchTracksWithPlayCounts(from: tracks)
                     
                     await MainActor.run {
                         self.albumDetails = detailedAlbum
-                        self.albumSongs = Array(tracks)
-                        self.totalPlayCount = playCount
+                        self.albumSongs = trackList
+                        self.totalPlayCount = totalPlays
                         self.isLoadingAlbumDetails = false
                     }
                 } else {
@@ -52,25 +51,52 @@ class AlbumInfoViewModel: ObservableObject {
         }
     }
     
-    private func calculateTotalPlayCount(for tracks: MusicItemCollection<Track>) async -> Int {
-        var total = 0
+    private func fetchTracksWithPlayCounts(from tracks: MusicItemCollection<MusicKit.Track>) async -> ([Track], Int) {
+        var trackList: [Track] = []
+        var totalPlayCount = 0
         
-        // Use the listening history from MusicAPI to calculate play counts
         for track in tracks {
-            let historyItem = await musicAPI.listeningHistory.first { item in
-                item.title.lowercased() == track.title.lowercased() &&
-                item.artist.lowercased() == track.artistName.lowercased()
+            var playCount = 0
+            do {
+                var libraryRequest = MusicLibraryRequest<MusicKit.Song>()
+                libraryRequest.filter(text: "\(track.title) \(track.artistName)")
+                let libraryResponse = try await libraryRequest.response()
+                if let librarySong = libraryResponse.items.first(where: {
+                    $0.title.lowercased() == track.title.lowercased() &&
+                    $0.artistName.lowercased() == track.artistName.lowercased()
+                }) {
+                    playCount = librarySong.playCount ?? 0
+                    print("Library playCount for \(track.title) by \(track.artistName): \(playCount)")
+                } else {
+                    let recentlyPlayedRequest = MusicRecentlyPlayedRequest<MusicKit.Song>()
+                    let recentlyPlayedResponse = try await recentlyPlayedRequest.response()
+                    if let playedSong = recentlyPlayedResponse.items.first(where: {
+                        $0.title.lowercased() == track.title.lowercased() &&
+                        $0.artistName.lowercased() == track.artistName.lowercased()
+                    }) {
+                        playCount = playedSong.playCount ?? 0
+                        print("Recently played playCount for \(track.title) by \(track.artistName): \(playCount)")
+                    } else {
+                        print("No play data for \(track.title) by \(track.artistName)")
+                    }
+                }
+            } catch {
+                print("Failed to fetch play count for \(track.title) by \(track.artistName): \(error)")
             }
             
-            if let historyItem = historyItem {
-                total += historyItem.playCount
-            }
+            trackList.append(Track(
+                id: UUID(),
+                title: track.title,
+                artistName: track.artistName,
+                playCount: playCount,
+                trackNumber: track.trackNumber
+            ))
+            totalPlayCount += playCount
         }
         
-        return total
+        return (trackList, totalPlayCount)
     }
     
-    // Add methods for getting ranked and unranked songs
     func getRankedSongs(rankingManager: MusicRankingManager) -> [Track] {
         return albumSongs.filter { track in
             rankingManager.rankedSongs.contains { song in
@@ -88,4 +114,12 @@ class AlbumInfoViewModel: ObservableObject {
             }
         }
     }
+}
+
+struct Track: Identifiable {
+    let id: UUID
+    let title: String
+    let artistName: String
+    let playCount: Int
+    let trackNumber: Int?
 }
