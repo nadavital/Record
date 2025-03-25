@@ -30,18 +30,6 @@ struct ProfileView: View {
                     ProfileHeader(isEditing: $isEditing)
                         .padding(.horizontal)
                     
-                    // Album section
-                    AlbumSection(
-                        isEditingAlbums: .constant(isEditing),
-                        showAlbumPicker: $showAlbumPicker)
-                        .padding(.horizontal)
-                    
-                    // Top artists section
-                    ArtistSection(
-                        isEditingArtists: .constant(isEditing),
-                        showArtistPicker: $showArtistPicker)
-                        .padding(.horizontal)
-                    
                     // Songs section
                     ProfileTopThreeRankedSongsSection()
                         .padding(.horizontal)
@@ -129,8 +117,6 @@ struct ProfileView: View {
         }
     }
 }
-
-// Remove the CompactStatsSection struct since we're no longer using it
 
 #Preview {
     let rankingManager = MusicRankingManager()
